@@ -303,6 +303,27 @@ test("a matching If-None-Match gets a 304", async () => {
   assert.equal(page.headers.get("cache-control"), "no-cache");
 });
 
+test("HTML has a weak ETag and If-None-Match accepts weak and strong forms", async () => {
+  for (const path of ["/", "/convert", "/about"]) {
+    const etag = (await get(path)).headers.get("etag");
+    assert.match(etag, /^W\/"[^"]+"$/, path);
+    const strong = etag.slice(2);
+    for (const inm of [etag, strong, `"other", ${strong}`, `W/"other", ${etag}`]) {
+      const res = await get(path, { headers: { "If-None-Match": inm } });
+      assert.equal(res.status, 304, `${path} If-None-Match: ${inm}`);
+      assert.equal(res.headers.get("etag"), etag);
+    }
+    assert.equal((await get(path, { headers: { "If-None-Match": 'W/"other"' } })).status, 200, path);
+  }
+  // Assets keep a strong ETag, and a weak form of it still revalidates.
+  const css = (await get("/styles.css")).headers.get("etag");
+  assert.match(css, /^"[^"]+"$/);
+  assert.equal((await get("/styles.css", { headers: { "If-None-Match": `W/${css}` } })).status, 304);
+  // A weak ETag can't satisfy If-Range, so the whole page comes back.
+  const etag = (await get("/")).headers.get("etag");
+  assert.equal((await get("/", { headers: { Range: "bytes=0-9", "If-Range": etag } })).status, 200);
+});
+
 test("other methods get a 405", async () => {
   const res = await get("/", { method: "POST", body: "x" });
   assert.equal(res.status, 405);

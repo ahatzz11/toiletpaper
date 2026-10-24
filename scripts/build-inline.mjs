@@ -101,7 +101,8 @@ for (const f of files) {
   const body = bodies.push(isText ? f.bytes.toString("utf8") : f.bytes.toString("base64")) - 1;
   const shared = {
     type: TYPES[f.ext] ?? "application/octet-stream",
-    etag: `"${sha256(f.bytes).digest("base64url").slice(0, 27)}"`,
+    // HTML gets a weak ETag: Cloudflare's edge drops strong ETags from HTML it may rewrite, but keeps weak ones.
+    etag: `${f.ext === ".html" ? "W/" : ""}"${sha256(f.bytes).digest("base64url").slice(0, 27)}"`,
     // Text is embedded as a JSON string, binary as base64.
     base64: !isText,
     body,
@@ -165,12 +166,11 @@ function lookup(path) {
   return (stale && FILES.get(stale[1] + stale[2])) ?? null;
 }
 
+// If-None-Match uses weak comparison: W/"x" and "x" match each other.
 function etagMatches(header, etag) {
   if (!header) return false;
-  return header.split(",").some((tag) => {
-    const t = tag.trim();
-    return t === "*" || t === etag || t === "W/" + etag;
-  });
+  const opaque = (tag) => tag.trim().replace(/^W\\//, "");
+  return header.split(",").some((tag) => tag.trim() === "*" || opaque(tag) === opaque(etag));
 }
 
 // One "bytes=a-b", "bytes=a-" or "bytes=-n" range. Returns [first, last], "unsatisfiable", or
@@ -205,7 +205,8 @@ function respond(request, entry, status) {
     }
     const range = request.headers.get("Range");
     const ifRange = request.headers.get("If-Range");
-    if (range && (!ifRange || ifRange === entry.etag)) {
+    // If-Range needs a strong match, so a weak ETag never satisfies it and the whole file is sent.
+    if (range && (!ifRange || (ifRange === entry.etag && !entry.etag.startsWith("W/")))) {
       const size = bytes.byteLength;
       const r = parseRange(range, size);
       if (r === "unsatisfiable") {
