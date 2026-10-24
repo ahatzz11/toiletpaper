@@ -11,13 +11,30 @@
   function $(id) { return document.getElementById(id); }
 
   // Keep the address bar shareable without adding history entries.
+  // The URL is the only saved state: nothing goes to localStorage, so a shared link always opens
+  // exactly what it says.
   var urlTimer = null;
+  var pendingQuery = null;
+  function writeURL() {
+    clearTimeout(urlTimer);
+    if (pendingQuery == null) return;
+    var next = location.pathname + (pendingQuery ? "?" + pendingQuery : "") + location.hash;
+    pendingQuery = null;
+    if (next !== location.pathname + location.search + location.hash) history.replaceState(history.state, "", next);
+  }
   function syncURL(query) {
     clearTimeout(urlTimer);
-    urlTimer = setTimeout(function () {
-      var next = location.pathname + (query ? "?" + query : "") + location.hash;
-      if (next !== location.pathname + location.search + location.hash) history.replaceState(history.state, "", next);
-    }, 400);
+    pendingQuery = query;
+    urlTimer = setTimeout(writeURL, 400);
+  }
+  // Leaving within the debounce still records the last edit, so Back returns to it.
+  window.addEventListener("pagehide", writeURL);
+
+  // Server-rendered radios can come back with a stale choice from the browser's form restoration,
+  // so the state parsed from the URL sets them.
+  function checkMode(name, mode) {
+    var radio = document.querySelector('input[name="' + name + '"][value="' + mode + '"]');
+    if (radio) radio.checked = true;
   }
 
   // ======================================================
@@ -189,10 +206,11 @@
     });
     $("reset-packs").addEventListener("click", function () {
       deal = Core.defaultDeal();
-      document.querySelector('input[name="judge"][value="' + deal.mode + '"]').checked = true;
+      checkMode("judge", deal.mode);
       renderPacks();
     });
     setupCopyLink($("copy-link"), $("copy-status"), function () { return Core.dealLink(deal); });
+    checkMode("judge", deal.mode);
     renderPacks();
   }
 
@@ -238,6 +256,7 @@
       conv.roll = row.dataset.id;
       renderConverter();
     });
+    checkMode("conv-mode", conv.mode);
     renderConverter();
   }
 

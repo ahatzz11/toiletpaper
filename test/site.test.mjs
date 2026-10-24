@@ -466,7 +466,7 @@ test("linked pages render the linked result on the server, with a clean canonica
   const page = await res.text();
   assert.equal(pick(page, /<link rel="canonical" href="([^"]+)">/), ORIGIN + "/");
   assert.equal(pick(page, /<meta property="og:url" content="([^"]+)">/), ORIGIN + "/");
-  assert.match(page, /<input type="radio" name="judge" value="area" checked>/);
+  assert.match(page, /<input type="radio" name="judge" value="area" autocomplete="off" checked>/);
   assert.match(page, /value="8.99"/);
   const summary = (await json("/api/compare" + query)).summary;
   assert.equal(pick(page, /<meta property="og:description" content="([^"]+)">/), Core.esc(summary));
@@ -474,7 +474,7 @@ test("linked pages render the linked result on the server, with a clean canonica
 
   const conv = await html("/convert?roll=quilted-northern-ultra-plush-mega&mode=area");
   assert.match(conv, /<option value="quilted-northern-ultra-plush-mega" selected>/);
-  assert.match(conv, /<input type="radio" name="conv-mode" value="area" checked>/);
+  assert.match(conv, /<input type="radio" name="conv-mode" value="area" autocomplete="off" checked>/);
   assert.equal(pick(conv, /<link rel="canonical" href="([^"]+)">/), ORIGIN + "/convert");
   // Unrelated query strings serve the static page, ETag and all.
   assert.ok((await get("/?utm_source=x")).headers.get("etag"));

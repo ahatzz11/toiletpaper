@@ -67,6 +67,8 @@ https://toiletpaper.app/?mode=area&a=charmin-ultra-soft-mega-xl,6,9.99&b=quilted
 
 Bad values are dropped and the page falls back to its defaults. The Worker renders linked state on the server too, so the first paint and the link preview (`og:description`) show the linked result. The canonical URL never includes the query.
 
+The URL is the only saved state. Nothing goes to `localStorage` or cookies, so opening a link always shows that link's packs, and your own comparison lives in your history (Back) and in links you copied. The tool controls carry `autocomplete="off"` and app.js sets them from the parsed URL on load, so a browser restoring old form values can't override a link. `test/browser.test.mjs` checks this in Chrome with a returning visitor's profile; it skips itself when Chrome isn't installed.
+
 ## API
 
 Read-only, open CORS (`Access-Control-Allow-Origin: *`, OPTIONS preflight), GET and HEAD only (anything else gets a 405 JSON error).

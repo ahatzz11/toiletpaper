@@ -313,8 +313,8 @@ var TPCore = (function (D) {
     return '<article class="pack' + (status.winner ? " is-winner" : "") + '" aria-label="Pack ' + letter + '">' +
       '<div class="pack-main">' +
       '<span class="pack-letter" aria-hidden="true">' + letter + "</span>" +
-      field("Roll", '<select data-k="productId" aria-label="Pack ' + letter + ' roll">' + productOptions(pack.productId, false, true) + "</select>", "product-field") +
-      field("Rolls", '<span class="rolls-wrap"><input type="number" data-k="rolls" min="1" step="1" inputmode="numeric" value="' + esc(pack.rolls) + '" aria-invalid="' + !(r.rolls > 0) + '"></span>', "rolls-field") +
+      field("Roll", '<select data-k="productId" autocomplete="off" aria-label="Pack ' + letter + ' roll">' + productOptions(pack.productId, false, true) + "</select>", "product-field") +
+      field("Rolls", '<span class="rolls-wrap"><input type="number" data-k="rolls" min="1" step="1" inputmode="numeric" autocomplete="off" value="' + esc(pack.rolls) + '" aria-invalid="' + !(r.rolls > 0) + '"></span>', "rolls-field") +
       field("Price", '<span class="price-wrap"><input type="text" data-k="price" inputmode="decimal" autocomplete="off" placeholder="0.00" value="' + esc(pack.price) + '" aria-invalid="' + badPrice + '"></span>', "price-field") +
       '<div class="pack-score"><span class="score-value">' + esc(status.value) + '</span><span class="score-unit">' + esc(status.unit) + "</span>" +
       '<span class="score-vs' + (status.vsClass ? " " + status.vsClass : "") + '">' + esc(status.vs) + "</span></div>" +
@@ -322,10 +322,10 @@ var TPCore = (function (D) {
       "</div>" +
       '<div class="pack-custom"' + (pack.productId === "custom" ? "" : " hidden") + ">" +
       '<p class="hint">Copy these from the pack.</p>' +
-      field("Sheets per roll", '<input type="number" data-c="sheets" min="1" step="1" inputmode="numeric" value="' + esc(c.sheets) + '">', "") +
-      field("Sheet width (in)", '<input type="number" data-c="width" min="0.1" step="0.01" inputmode="decimal" value="' + esc(c.width) + '">', "") +
-      field("Sheet length (in)", '<input type="number" data-c="length" min="0.1" step="0.01" inputmode="decimal" value="' + esc(c.length) + '">', "") +
-      field("Ply", '<input type="number" data-c="ply" min="1" step="1" inputmode="numeric" value="' + esc(c.ply) + '">', "") +
+      field("Sheets per roll", '<input type="number" data-c="sheets" min="1" step="1" inputmode="numeric" autocomplete="off" value="' + esc(c.sheets) + '">', "") +
+      field("Sheet width (in)", '<input type="number" data-c="width" min="0.1" step="0.01" inputmode="decimal" autocomplete="off" value="' + esc(c.width) + '">', "") +
+      field("Sheet length (in)", '<input type="number" data-c="length" min="0.1" step="0.01" inputmode="decimal" autocomplete="off" value="' + esc(c.length) + '">', "") +
+      field("Ply", '<input type="number" data-c="ply" min="1" step="1" inputmode="numeric" autocomplete="off" value="' + esc(c.ply) + '">', "") +
       "</div>" +
       '<p class="pack-meta">' + esc(status.meta) + "</p>" +
       '<p class="pack-warning"' + (status.warning ? "" : " hidden") + ">" + esc(status.warning) + "</p>" +
@@ -400,7 +400,7 @@ var TPCore = (function (D) {
     return '<div class="segmented" role="radiogroup" aria-labelledby="' + labelId + '">' +
       '<span class="seg-label" id="' + labelId + '">Compare by</span>' +
       MODE_KEYS.map(function (k) {
-        return '<label><input type="radio" name="' + name + '" value="' + k + '"' + (k === mode ? " checked" : "") + "><span>" + MODES[k].label + "</span></label>";
+        return '<label><input type="radio" name="' + name + '" value="' + k + '" autocomplete="off"' + (k === mode ? " checked" : "") + "><span>" + MODES[k].label + "</span></label>";
       }).join("") + "</div>";
   }
 
@@ -513,7 +513,7 @@ var TPCore = (function (D) {
     var p = byId[state.roll];
     return '<div class="conv-layout">' +
       '<section class="conv-left" aria-label="Pick a roll">' +
-      '<div class="toolbar"><label class="field"><span class="field-label">Roll</span><select id="conv-select">' + productOptions(state.roll, true, false) + "</select></label>" +
+      '<div class="toolbar"><label class="field"><span class="field-label">Roll</span><select id="conv-select" autocomplete="off">' + productOptions(state.roll, true, false) + "</select></label>" +
       modeRadios("conv-mode", state.mode, "conv-mode-label") + "</div>" +
       '<div class="roll-card ' + p.brand + '" id="conv-card">' + converterCardHTML(state) + "</div>" +
       '<div class="equals-hero" id="conv-regulars" aria-live="polite">' + converterEqualsHTML(state) + "</div>" +

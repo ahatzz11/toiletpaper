@@ -72,10 +72,10 @@ test("trailing-slash routes 301 to the clean path", async () => {
 
 test("sheet count is the default comparison on both tools", async () => {
   const deal = await (await get("/")).text();
-  assert.match(deal, /<input type="radio" name="judge" value="sheets" checked>/);
+  assert.match(deal, /<input type="radio" name="judge" value="sheets" autocomplete="off" checked>/);
   assert.doesNotMatch(deal, /name="judge" value="(area|areaply)" checked/);
   const convert = await (await get("/convert")).text();
-  assert.match(convert, /<input type="radio" name="conv-mode" value="sheets" checked>/);
+  assert.match(convert, /<input type="radio" name="conv-mode" value="sheets" autocomplete="off" checked>/);
   assert.doesNotMatch(convert, /name="conv-mode" value="(area|areaply)" checked/);
 });
 
