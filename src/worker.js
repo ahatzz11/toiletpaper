@@ -143,17 +143,13 @@ function api(request, url, path) {
 // ---------- pages with state in the query string ----------
 // /?mode=area&a=... and /convert?roll=... render the linked result on the server, so the first
 // paint (and a link preview) already shows it. The page around it is the static one.
-const escAttr = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-
 function withTool(entry, html, description) {
   let page = entry.text();
   const start = page.indexOf(TOOL_START);
   const end = page.indexOf(TOOL_END);
   if (start < 0 || end < start) return null;
   page = page.slice(0, start + TOOL_START.length) + html + page.slice(end);
-  if (description) {
-    page = page.replace(/(<meta (?:property="og:description"|name="twitter:description") content=")[^"]*"/g, `$1${escAttr(description)}"`);
-  }
+  if (description) page = TPCore.setShareDescription(page, description);
   return page;
 }
 

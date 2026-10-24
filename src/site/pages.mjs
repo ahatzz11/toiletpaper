@@ -362,7 +362,7 @@ export function buildSite(D, Core) {
       <h2>A worked example</h2>
       <p>With made-up prices (they're examples, not real store prices):</p>
       <ul>${exRows}</ul>
-      <p>${esc(Core.resultSentence(exampleState, ex).replace(/^Pack ([A-H]) \(/, "Pack $1 ("))}</p>
+      <p>${esc(Core.resultSentence(exampleState, ex))}</p>
       <h2>Why shelf tags mislead</h2>
       <ul>
         <li>Store unit prices use different units: per roll, per 100 sheets or per square foot, sometimes on the same shelf.</li>

@@ -406,6 +406,38 @@ test("linked pages render the linked result on the server, with a clean canonica
   assert.ok((await get("/?utm_source=x")).headers.get("etag"));
 });
 
+test("prices with $ patterns don't corrupt the server-rendered page", async () => {
+  const cases = [
+    // The live bug: "$13.49" in the summary was read as $1 followed by "3.49".
+    "?mode=area&a=charmin-ultra-soft-mega-xl,6,9.99&b=quilted-northern-ultra-soft-strong-mega,12,13.49",
+    "?a=charmin-ultra-soft-mega,6,1.00&b=angel-soft-mega,12,10.00",
+    // Price text with $ patterns: "$$1.00" reads as 1.00. "$&", "$`$12.99" and "$'5" aren't prices, so those packs are dropped.
+    "?a=charmin-ultra-soft-mega,6,%24%241.00&b=angel-soft-mega,12,%24%26&c=angel-soft-mega-xl,8,12.99&d=charmin-ultra-soft-mega-xl,6,%24%60%2412.99&e=charmin-ultra-soft-mega-xl,6,$'5",
+  ];
+  for (const query of cases) {
+    const page = await html("/" + query);
+    const state = Core.parseDeal(new URLSearchParams(query), false).state;
+    const summary = Core.resultSentence(state, Core.computeDeal(state));
+    assert.match(summary, /\$\d/, query);
+    assert.equal((page.match(/<meta property="og:description"/g) || []).length, 1, query);
+    assert.equal(pick(page, /<meta property="og:description" content="([^"]*)">/), Core.esc(summary), query);
+    assert.equal((page.match(/<title>/g) || []).length, 1, query);
+    assert.equal((page.match(/<!--tool-->/g) || []).length, 1, query);
+    assert.equal(page.indexOf("<!doctype html>"), 0, query);
+    // The result block and the JSON-LD are intact too.
+    const result = strip(pick(page, /<aside[^>]*id="deal-result"[^>]*>([\s\S]*?)<\/aside>/));
+    assert.ok(result.includes(strip(Core.resultHTML(state, Core.computeDeal(state)).html)), query);
+    for (const d of ldOf(page)) assert.ok(d["@graph"], query);
+  }
+  // Every replacement pattern comes through as text.
+  const tags = '<meta property="og:description" content="old"><meta name="twitter:description" content="old">';
+  for (const text of ["$1", "$13.49", "$&", "$$", "$`", "$'", "$<name>", "a $1 b $& c $$ d $` e $' f"]) {
+    const out = Core.setShareDescription(tags, text);
+    const want = Core.esc(text);
+    assert.equal(out, `<meta property="og:description" content="${want}"><meta name="twitter:description" content="${want}">`, text);
+  }
+});
+
 // ---------- data ----------
 test("every product has a source, and every source URL is https", () => {
   for (const p of D.products) {

@@ -524,6 +524,18 @@ var TPCore = (function (D) {
   }
 
   // ======================================================
+  // Server rendering
+  // ======================================================
+  // Sets the content of the og:description and twitter:description tags in a page. Uses a
+  // replacer function, because a string replacement would read "$1" in "$13.49" (or $&, $$,
+  // $` and $') as a pattern instead of text.
+  var SHARE_DESCRIPTION = /(<meta (?:property="og:description"|name="twitter:description") content=")[^"]*"/g;
+  function setShareDescription(page, text) {
+    var value = esc(text);
+    return page.replace(SHARE_DESCRIPTION, function (match, open) { return open + value + '"'; });
+  }
+
+  // ======================================================
   // API payloads
   // ======================================================
   function productJSON(p) {
@@ -641,6 +653,6 @@ var TPCore = (function (D) {
     productOptions: productOptions, packRowHTML: packRowHTML, packsHTML: packsHTML, resultHTML: resultHTML, resultSentence: resultSentence, dealHTML: dealHTML,
     converterHTML: converterHTML, converterCardHTML: converterCardHTML, converterEqualsHTML: converterEqualsHTML, claimCheckHTML: claimCheckHTML, chartRowsHTML: chartRowsHTML,
     productsJSON: productsJSON, productJSON: productJSON, compareJSON: compareJSON,
-    skyRollHTML: skyRollHTML,
+    skyRollHTML: skyRollHTML, setShareDescription: setShareDescription,
   };
 })(TP_DATA);
