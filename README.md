@@ -4,8 +4,9 @@ A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern,
 
 | Route | Page |
 | --- | --- |
-| `/` | Deal calculator: pick the packs on the shelf, type the prices, see which costs less |
+| `/` | Deal calculator: pick the packs on the shelf, type the prices, see which costs less, or which is the softest or the best balance |
 | `/convert` | Roll converter: what one roll equals in every other roll, with a chart of all rolls |
+| `/softness` | The softness scale: every line from 1 to 10 on one long strip of paper, least soft first, with sandpaper, a corn cob and a cloud as labeled jokes at the ends. Plain HTML and CSS, no JS |
 | `/about` | How it works, for people: why sheets beat "rolls" in three cards, then a short FAQ (`<details>` accordion, works without JS) |
 | `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. The "Data" tab in the nav |
 | `/charmin-mega-vs-quilted-northern-mega`, `/how-many-sheets-in-a-mega-roll`, `/cheapest-toilet-paper-per-sheet` | Short guides that answer one question each and link into the tools |
@@ -14,7 +15,7 @@ A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern,
 
 Both tools compare by sheet count by default. Paper area and area × ply are one click away.
 
-The nav has four tabs: Best deal, Roll converter, How it works and Data. Below 375px wide the first two shorten to "Deal" and "Converter" so all four stay on one row. Every page ends with the same one-line footer, "Not affiliated with any brand", with no links. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
+The nav has four tabs in a pill (Best deal, Roll converter, Softness, How it works) and Data as a quieter text link after them. Below 1024px the tabs shorten to Deal, Converter, Softness and About. On phones (up to 640px) and small tablets (641 to 760px) the tabs fill a row under the brand and Data moves to the right end of the brand row, so the phone header stays 103px tall. `test/browser.test.mjs` measures it at 320, 360, 375, 390, 768 and 1440px. Every page ends with the same one-line footer, "Not affiliated with any brand · Open source on GitHub", linking to https://github.com/ahatzz11/toiletpaper. It stays on one line down to 320px. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
 
 ## Data
 
@@ -27,6 +28,38 @@ The nav has four tabs: Best deal, Roll converter, How it works and Data. Below 3
 - A brand that prints no "= N regular rolls" claim gets `regularId: null`, and its products get `claim: null` (and `size: null` if it has no size names). Its own roll is the unit: the converter shows what one roll equals in the other brands' regular rolls, and the tables say "no claim". Kirkland Signature is the one such brand. Its sheets, sheet size, ply, rolls and pack totals all come from costco.com, and the printed square-foot totals match our math exactly.
 - A number computed from other printed numbers is flagged `derived`. A number we couldn't find printed and borrowed from a sibling product is `estimated`. Both show as tags on the site.
 - Update `checked` in `data.js` and `UPDATED` in `src/site/config.mjs` when you recheck.
+
+### Softness
+
+Softness has no industry standard and no printed number, so `data.js` has a `softness` block: one coarse score from 1 to 10 per product line, and each product's `soft` key names its line. Regular rolls and custom rolls are never rated. The method, as it appears on `/softness` and `/data#softness`:
+
+1. Start from TechGearLab's tester-panel softness score (updated 2025-02-13), the one current test that puts a number on most lines, rounded to a whole number.
+2. Move a line by one point at most when another independent test clearly disagrees: Good Housekeeping Institute (updated 2026-02-10; a blind tester panel plus an EmTec Tissue Softness Analyzer run by NC State) or Reviewed (updated 2024-05-02; hands-on).
+3. Brand tier names (Charmin Ultra Soft vs Ultra Strong, Quilted Northern Ultra Plush vs Ultra Soft & Strong) only order lines within a brand. They never set a score on their own.
+4. A line is rated only when a current test covers that line. Tests of discontinued versions, single blog posts, retailer star ratings and paywalled results don't count. Such a line has `score: null` and shows as "not rated".
+
+| Line | Score | Sources |
+| --- | --- | --- |
+| Charmin Ultra Soft | 10 | TechGearLab 8.6 (tied top), Good Housekeeping 2026 softest (+1), Reviewed 2024 comfort pick |
+| Quilted Northern Ultra Plush | 8 | TechGearLab 7.8, Good Housekeeping 2026 "some of the highest scores for softness", Reviewed 2024 |
+| Quilted Northern Ultra Soft & Strong | 7 | TechGearLab 7.4, Good Housekeeping 2026 "not quite as soft" as Ultra Plush, Reviewed 2024 |
+| Charmin Ultra Strong | 6 | TechGearLab 6.8 (rounds to 7), Reviewed 2024 "not as soft as some others" (-1), Charmin sells it for strength |
+| Angel Soft | 5 | TechGearLab 5.4 (tested Angel Soft Double), Reviewed 2024 |
+| Charmin Essentials (1-ply) | not rated | Tests found rated the discontinued Essentials Soft |
+| Kirkland Signature Bath Tissue | not rated | Only old tests (Consumer Reports 2014, a 2018 panel of an older roll) or a blog; Consumer Reports 2025 is paywalled |
+| Kirkland Signature Ultra Soft | not rated | No independent test found |
+
+Consumer Reports' 2025 toilet paper ratings and Wirecutter couldn't be read (paywall, blocked), so nothing from them is used. Recheck the sources when you update `softness.checked`.
+
+### What matters more
+
+The calculator's priority (`p` in links and the API) picks the winner:
+
+- **Cheapest** (`cheap`, the default): the lowest price per unit (per sheet, per sq ft or per sq ft × ply, following `mode`). Softness doesn't count.
+- **Balanced** (`balanced`): start from the cheapest pack. A softer pack wins if it costs at most 10% more per unit for each softness point it gains over the cheapest, so 2 points softer may cost up to 20% more. Of the packs that qualify, the softest wins, then the cheaper. If the cheapest pack isn't rated, Balanced can't weigh it and keeps the cheapest. `BALANCE_STEP` in `core.js` sets the 10%.
+- **Softest** (`soft`): the softest rated pack wins; the cheaper one breaks a tie. Packs that aren't rated are left out and named on the result card. If no pack is rated, the cheapest wins and the card says so.
+
+The result card explains the pick in plain words, like "It costs 20% more per sheet than Pack A but is softer (7 vs 5 out of 10). Balanced pays up to 20% more for that."
 
 ## How it's built
 
@@ -62,6 +95,7 @@ https://toiletpaper.app/?mode=area&a=charmin-ultra-soft-mega-xl,6,9.99&b=quilted
 ```
 
 - `mode`: `sheets`, `area` or `areaply` (`ply` also works).
+- `p`: `cheap` (default, left out of links), `balanced` or `soft`. `cheapest`, `balance` and `softest` also work.
 - `a` to `h`: one pack each, `<product id>,<rolls>,<price>`. The price may be empty. A roll that isn't listed is `custom:<sheets>:<width>x<length>:<ply>`.
 - The converter: `/convert?roll=<product id>&mode=area`.
 
@@ -73,8 +107,8 @@ The URL is the only saved state. Nothing goes to `localStorage` or cookies, so o
 
 Read-only, open CORS (`Access-Control-Allow-Origin: *`, OPTIONS preflight), GET and HEAD only (anything else gets a 405 JSON error).
 
-- `GET /api/products`: every brand and roll. Cached for an hour, with an ETag.
-- `GET /api/compare?mode=sheets&a=<id>,<rolls>,<price>&b=...`: 2 to 8 packs. Returns the price per 100 sheets, per sq ft and per sq ft × ply for each pack, the winner (or a tie), the percent differences, a one-line summary and a link to the same comparison in the calculator. Cached for 5 minutes. Bad input gets a 400 with a JSON `error`.
+- `GET /api/products`: every brand and roll, cached for an hour, with an ETag. Each product has `softness`: `{ score, outOf, line, basis, sources }`, or `null` when it isn't rated. A top-level `softness` object carries the method.
+- `GET /api/compare?mode=sheets&p=cheap&a=<id>,<rolls>,<price>&b=...`: 2 to 8 packs. Returns the price per 100 sheets, per sq ft and per sq ft × ply and the softness score for each pack, `best` (the winner for `p`) and `cheapest` flags, `priority` and `pickReason`, the winner (or a tie), the percent differences, a one-line summary and a link to the same comparison in the calculator. Cached for 5 minutes. Bad input gets a 400 with a JSON `error`.
 
 `/openapi.json` describes both (OpenAPI 3.1).
 

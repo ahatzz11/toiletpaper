@@ -158,7 +158,7 @@ function linkedPage(request, url, path, entry) {
   let page = null;
   if (path === "/") {
     const { state, linked } = TPCore.parseDeal(url.searchParams, false);
-    if (!linked && state.mode === TPCore.DEFAULT_MODE) return null;
+    if (!linked && state.mode === TPCore.DEFAULT_MODE && state.priority === TPCore.DEFAULT_PRIORITY) return null;
     const deal = TPCore.computeDeal(state);
     page = withTool(entry, TPCore.dealHTML(state), linked ? TPCore.resultSentence(state, deal) : null);
   } else if (path === "/convert") {

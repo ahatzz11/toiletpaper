@@ -19,10 +19,10 @@ const strip = (s) => s.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/
 const { D, Core } = loadCore(fileURLToPath(new URL("..", import.meta.url)));
 
 const INDEXED = [
-  "/", "/convert", "/about", "/data",
+  "/", "/convert", "/about", "/data", "/softness",
   "/charmin-mega-vs-quilted-northern-mega", "/how-many-sheets-in-a-mega-roll", "/cheapest-toilet-paper-per-sheet",
 ];
-const GUIDES = INDEXED.slice(4);
+const GUIDES = INDEXED.slice(5);
 const absolute = (path) => ORIGIN + (path === "/" ? "/" : path);
 const ldOf = (page) => [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 const graphOf = (page) => ldOf(page).flatMap((d) => d["@graph"] ?? [d]);
@@ -174,12 +174,13 @@ test("sitemap.xml lists every indexed page with lastmod, and nothing else", asyn
   for (const path of INDEXED) assert.equal((await get(path)).status, 200, path);
 });
 
-test("every page's footer is just the one line, with no links", async () => {
+test("every page's footer is one line: the disclaimer and the repo link", async () => {
   for (const path of [...INDEXED, "/nope"]) {
     const footer = pick(await html(path), /<footer[^>]*>([\s\S]*?)<\/footer>/);
     assert.equal((footer.match(/<p[ >]/g) || []).length, 1, `${path}: one paragraph`);
-    assert.doesNotMatch(footer, /<(a|ul|ol|li)[ >]/, `${path}: no links or lists`);
-    assert.equal(strip(footer), "Not affiliated with any brand", path);
+    assert.doesNotMatch(footer, /<(ul|ol|li)[ >]/, `${path}: no lists`);
+    assert.deepEqual([...footer.matchAll(/<a\b[^>]*>/g)].map((m) => m[0]), ['<a href="https://github.com/ahatzz11/toiletpaper">'], path);
+    assert.equal(strip(footer), "Not affiliated with any brand · Open source on GitHub", path);
   }
 });
 
@@ -237,7 +238,9 @@ test("openapi.json is OpenAPI 3.1 and describes both endpoints", async () => {
   assert.equal(spec.servers[0].url, ORIGIN);
   assert.deepEqual(Object.keys(spec.paths), ["/api/products", "/api/compare"]);
   const params = spec.paths["/api/compare"].get.parameters.map((p) => p.name);
-  assert.deepEqual(params, ["mode", "a", "b", "c", "d", "e", "f", "g", "h"]);
+  assert.deepEqual(params, ["mode", "p", "a", "b", "c", "d", "e", "f", "g", "h"]);
+  assert.deepEqual(spec.paths["/api/compare"].get.parameters[1].schema.enum, ["cheap", "balanced", "soft"]);
+  assert.ok(spec.components.schemas.Product.properties.softness);
   // Every $ref resolves.
   for (const ref of JSON.stringify(spec).matchAll(/"\$ref":"#\/components\/schemas\/(\w+)"/g)) assert.ok(spec.components.schemas[ref[1]], ref[1]);
   // The documented example works.

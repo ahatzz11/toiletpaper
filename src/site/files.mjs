@@ -41,6 +41,7 @@ The deal calculator reads its state from the query string, so a link can open a 
 \`${ORIGIN}/?mode=<mode>&a=<product id>,<rolls>,<price>&b=...\`
 
 - \`mode\`: \`sheets\` (price per sheet), \`area\` (price per square foot) or \`areaply\` (per square foot, counting ply).
+- \`p\`: what matters more. \`cheap\` (default, lowest price wins), \`balanced\` or \`soft\` (softest rated pack wins). See "Softness" below.
 - \`a\` to \`h\`: up to ${Core.MAX_PACKS} packs. Each is a product id from /api/products, the number of rolls and the price in dollars. The price may be left empty.
 - A roll that isn't listed: \`custom:<sheets>:<width>x<length>:<ply>\`, with sheet sides in inches, for example \`custom:300:4x4:2,12,15.99\`.
 - Example: ${exampleLink}
@@ -53,10 +54,31 @@ Bad or unknown values are ignored and the page falls back to its defaults.`;
 
 Read-only JSON, free to use with a link back. CORS is open.
 
-- [${ORIGIN}/api/products](${ORIGIN}/api/products): every brand and roll with sheets per roll, sheet size, square feet, ply, what it equals in regular rolls, and its source.
-- [${ORIGIN}/api/compare](${compareExample}): \`GET /api/compare?mode=sheets&a=<id>,<rolls>,<price>&b=...\` (2 to ${Core.MAX_PACKS} packs) returns the cost per 100 sheets, per square foot and per square foot × ply for each pack, the winner, the percent difference and a link to the same comparison in the calculator.
+- [${ORIGIN}/api/products](${ORIGIN}/api/products): every brand and roll with sheets per roll, sheet size, square feet, ply, what it equals in regular rolls, its softness score (or null when not rated) with sources, and its source.
+- [${ORIGIN}/api/compare](${compareExample}): \`GET /api/compare?mode=sheets&p=cheap&a=<id>,<rolls>,<price>&b=...\` (2 to ${Core.MAX_PACKS} packs) returns the cost per 100 sheets, per square foot and per square foot × ply for each pack, its softness score, the winner for the priority \`p\`, the percent difference and a link to the same comparison in the calculator.
 - [${ORIGIN}/openapi.json](${ORIGIN}/openapi.json): OpenAPI 3.1 description of both endpoints.
 - [${ORIGIN}/data](${ORIGIN}/data): the same docs for people, with the full roll table and a source for every number.`;
+
+  const S = D.softness;
+  const softPage = indexed.find((p) => p.key === "softness");
+  const softSources = (l) => l.sources.map((id) => `${S.sources[id].publisher} (${S.sources[id].dateKind} ${S.sources[id].date}, ${S.sources[id].url})`).join("; ");
+  const softness = `## Softness
+
+${pageLine(softPage)}
+
+Softness has no industry standard, so each line gets a coarse score from 1 to ${S.max}. A line with no good source is "not rated" instead of guessed. Checked ${S.checked}.
+
+${S.method.map((m) => `- ${m}`).join("\n")}
+
+What matters more (\`p\` in calculator links and /api/compare):
+
+- \`cheap\` (default): the lowest price per unit wins. Softness doesn't count.
+- \`balanced\`: start from the cheapest pack. A softer pack wins if it costs at most ${Core.pct(Core.BALANCE_STEP)} more per unit for each softness point it gains over the cheapest (2 points softer may cost up to ${Core.pct(Core.BALANCE_STEP * 2)} more). Of the packs that qualify, the softest wins, then the cheaper. If the cheapest pack isn't rated, Balanced can't weigh it and keeps the cheapest.
+- \`soft\`: the softest rated pack wins; the cheaper one breaks a tie. Packs that aren't rated are left out. If no pack is rated, the cheapest wins.`;
+  const softTable =
+    "| Line | Score | Why | Sources |\n|---|---|---|---|\n" +
+    [...site.ratedLines.slice().reverse(), ...site.unratedLines].map((l) =>
+      `| ${l.name.replace(/\|/g, "\\|")} | ${l.score != null ? `${l.score}/${S.max}` : "not rated"} | ${(l.why || "").replace(/\|/g, "\\|")} | ${l.sources.length ? softSources(l).replace(/\|/g, "\\|") : "none found"} |`).join("\n");
 
   const llms = `# ${SITE_NAME}
 
@@ -70,6 +92,8 @@ ${tools.map(pageLine).join("\n")}
 
 ${guides.map(pageLine).join("\n")}
 ${pageLine(about)}
+
+${softness}
 
 ${api}
 
@@ -110,6 +134,12 @@ ${table}
 
 An Honest Roll is ${D.honestRollSqFt} square feet of paper, about one regular roll from any of these brands.
 
+${softness}
+
+${softTable}
+
+Regular rolls are each brand's measuring unit, not a pack you buy, so they aren't rated. Custom rolls are never rated. The /softness page also shows ${S.jokes.map((j) => j.name.toLowerCase()).join(", ").replace(/, ([^,]*)$/, " and $1")} at the ends of the scale. They're jokes, not tested and not scored.
+
 ## Questions
 
 ${site.faq.map((f) => `### ${f.q}\n\n${f.text}`).join("\n\n")}
@@ -145,6 +175,17 @@ ${deepLinks}
       source: { type: "string" },
       sourceUrl: { type: ["string", "null"], format: "uri" },
       sources: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: ["string", "null"] } } } },
+      softness: {
+        type: ["object", "null"],
+        description: `Softness score for the product's line, 1 to ${S.max}. Null when not rated (no good source, a regular roll, or a custom roll). Method: ${ORIGIN}/softness`,
+        properties: {
+          score: { type: "integer", minimum: 1, maximum: S.max },
+          outOf: { type: "integer", const: S.max },
+          line: { type: "string" },
+          basis: { type: "string", description: "Why the line has this score." },
+          sources: { type: "array", items: { type: "object", properties: { publisher: { type: "string" }, title: { type: "string" }, url: { type: "string", format: "uri" }, date: { type: "string", description: "As precise as the source gives." }, dateKind: { type: "string", enum: ["updated", "published", "tested", "checked"], description: "What the date is: when the page was last updated or published, when the test ran, or when we checked an undated maker page." }, method: { type: "string" } } } },
+        },
+      },
       converterUrl: { type: "string", format: "uri" },
     },
   };
@@ -178,6 +219,7 @@ ${deepLinks}
                 properties: {
                   checked: { type: "string" },
                   honestRollSqFt: { type: "number" },
+                  softness: { type: "object", properties: { checked: { type: "string" }, outOf: { type: "integer" }, method: { type: "array", items: { type: "string" } }, about: { type: "string", format: "uri" } } },
                   brands: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, maker: { type: "string" }, regularRollId: { type: ["string", "null"] }, regularRollSheets: { type: ["integer", "null"] } } } },
                   products: { type: "array", items: { $ref: "#/components/schemas/Product" } },
                 },
@@ -189,9 +231,10 @@ ${deepLinks}
       "/api/compare": {
         get: {
           operationId: "comparePacks",
-          summary: "Compare 2 to 8 packs by price",
+          summary: "Compare 2 to 8 packs by price, softness or a balance of both",
           parameters: [
             { name: "mode", in: "query", required: false, description: "sheets: per sheet (default). area: per square foot. areaply: per square foot × ply.", schema: { type: "string", enum: Core.MODE_KEYS, default: Core.DEFAULT_MODE } },
+            { name: "p", in: "query", required: false, description: `What matters more. cheap: lowest price per unit (default). balanced: a softer pack wins if it costs at most ${Core.pct(Core.BALANCE_STEP)} more per unit for each softness point it gains over the cheapest pack. soft: the softest rated pack wins, price breaks ties. Packs that aren't rated can't win on softness.`, schema: { type: "string", enum: Core.PRIORITY_KEYS, default: Core.DEFAULT_PRIORITY } },
             ...packParams,
           ],
           responses: {
@@ -213,14 +256,20 @@ ${deepLinks}
           properties: {
             mode: { type: "string", enum: Core.MODE_KEYS },
             modeName: { type: "string" },
+            priority: { type: "string", enum: Core.PRIORITY_KEYS },
+            priorityName: { type: "string" },
+            pickReason: { type: ["string", "null"], enum: ["cheap", "none-rated", "cheapest-unrated", "balanced-cheap", "balanced-soft", "soft", null], description: "Why the winner won. none-rated and cheapest-unrated mean softness couldn't be weighed, so the cheapest won." },
             packs: { type: "array", items: { type: "object", properties: {
               pack: { type: "string" }, label: { type: "string" }, productId: { type: "string" }, name: { type: "string" },
               sheetsPerRoll: { type: "number" }, sheetWidthIn: { type: "number" }, sheetLengthIn: { type: "number" }, ply: { type: "number" },
               rolls: { type: "integer" }, price: { type: "number" }, totalSheets: { type: "number" }, totalSqFt: { type: "number" },
               pricePer100Sheets: { type: "number" }, pricePerSqFt: { type: "number" }, pricePerSqFtPly: { type: "number" },
-              best: { type: "boolean" }, percentMoreThanBest: { type: "number" },
+              softness: { type: ["integer", "null"], description: `Softness score, 1 to ${S.max}, or null when not rated.` },
+              best: { type: "boolean", description: "This pack wins for the priority p." },
+              cheapest: { type: "boolean", description: "This pack is the cheapest per unit (within 0.5%)." },
+              percentMoreThanBest: { type: "number", description: "Percent more per unit than the cheapest pack." },
             } } },
-            winner: { type: ["string", "null"], description: "The cheapest pack's letter, or null on a tie." },
+            winner: { type: ["string", "null"], description: "The winning pack's letter for the priority p, or null on a tie." },
             tie: { type: ["array", "null"], items: { type: "string" } },
             percentCheaperThanPriciest: { type: "number" },
             summary: { type: "string" },

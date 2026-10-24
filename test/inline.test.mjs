@@ -26,6 +26,7 @@ const ASSETS = [
 const PAGES = [
   { path: "/", title: "Which toilet paper pack is the better deal? | Toilet Paper Math" },
   { path: "/convert", title: "Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math" },
+  { path: "/softness", title: "Softness scale: which toilet paper is softest? | Toilet Paper Math" },
   { path: "/about", title: "How it works: why sheets beat rolls | Toilet Paper Math" },
   { path: "/data", title: "Data &amp; API: every roll, its sources and a JSON API | Toilet Paper Math" },
 ];
@@ -50,10 +51,10 @@ for (const page of PAGES) {
     assert.ok(pick(html, /<meta name="description" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:title" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:description" content="([^"]+)">/));
-    // Every page links to every tab in the nav, and marks itself as current.
+    // Every page links to every tab in the nav, in order, and marks itself as current.
     const nav = pick(html, /<nav class="site-nav"[^>]*>([\s\S]*?)<\/nav>/);
     assert.deepEqual([...nav.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), PAGES.map((p) => p.path), page.path);
-    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)" aria-current="page">/g)].map((m) => m[1]), [page.path]);
+    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)" aria-current="page"[ >]/g)].map((m) => m[1]), [page.path]);
   });
 }
 
@@ -149,7 +150,7 @@ test("every page sizes the mascot and has fallback header styles without styles.
     const style = pick(html, /<style>([\s\S]*?)<\/style>/);
     assert.ok(style, `${page.path} has an inline <style>`);
     assert.match(style, /:where\(\.mascot\) \{ width: 58px; height: 63px;/);
-    assert.match(style, /:where\(\.site-nav\) \{ display: flex;/);
+    assert.match(style, /:where\(\.site-nav\), :where\(\.nav-tabs\) \{ display: flex;/);
     assert.ok(html.indexOf("<style>") < html.indexOf('<link rel="stylesheet"'), `${page.path}: inline style comes before the stylesheet`);
     fallback ??= style;
     assert.equal(style, fallback, `${page.path} has the same fallback styles as the other pages`);

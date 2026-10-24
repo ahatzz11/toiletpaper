@@ -147,14 +147,88 @@ a { color: var(--charmin); }
 .brand-name { font-family: var(--font-fun); font-size: 1.35rem; }
 .brand-tag { font-size: 0.8rem; color: var(--muted); }
 
-.site-nav { display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
-.site-nav a {
+/* Four tabs in a pill, then Data as a quiet text link. */
+.site-nav { display: flex; align-items: center; gap: 14px; }
+.nav-tabs { display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.nav-tabs a {
   color: var(--ink); text-decoration: none; font-weight: 600; font-size: 0.92rem;
-  padding: 0.4em 0.95em; border-radius: 999px; white-space: nowrap;
+  padding: 0.4em 0.95em; border-radius: 999px; white-space: nowrap; transition: background-color 0.15s, color 0.15s;
 }
-.site-nav a:hover { background: var(--surface); }
-.site-nav a[aria-current="page"] { background: var(--ink); color: #fff; }
+.nav-tabs a:hover { background: var(--surface); }
+.nav-tabs a[aria-current="page"] { background: var(--ink); color: #fff; }
+.nav-extra {
+  color: var(--muted); font-size: 0.85rem; font-weight: 600; white-space: nowrap;
+  text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; text-decoration-thickness: 2px;
+  padding: 0.4em 0.1em;
+}
+.nav-extra:hover { color: var(--ink); text-decoration-color: currentColor; }
+.nav-extra[aria-current="page"] { color: var(--ink); text-decoration-color: var(--sun); text-decoration-thickness: 3px; }
+@media (prefers-reduced-motion: reduce) { .nav-tabs a { transition: none; } }
 .nav-short { display: none; }
+
+/* ---------- Softness scale: one long strip of paper, rough at the top, fluffy at the bottom ---------- */
+.soft-legend { max-width: 720px; margin: 0 0 14px; color: var(--muted); font-size: 0.92rem; }
+.soft-scale { max-width: 720px; margin: 0 0 24px; }
+/* The roll the strip hangs from. */
+.soft-scale::before {
+  content: ""; display: block; height: 26px; margin: 0 -10px -4px; position: relative; z-index: 1;
+  background: linear-gradient(#FFFFFF, #F1E6D4); border: 1px solid var(--line-strong); border-radius: 13px;
+  box-shadow: 0 3px 8px rgba(46, 33, 64, 0.08);
+}
+.soft-strip {
+  list-style: none; margin: 0; padding: 0; position: relative; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 18px 18px;
+  box-shadow: 0 12px 30px rgba(46, 33, 64, 0.08);
+}
+/* The gauge down the left edge, from grit to sky. */
+.soft-strip::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+  background: linear-gradient(#9C7646, #E7C27A 16%, #FFFDF8 45%, #FFB3C7 80%, #A9D8FF);
+}
+.soft-sheet {
+  display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 8px 14px; align-items: center;
+  padding: 14px 18px 14px 24px; border-top: 2px dashed var(--line); min-height: 68px;
+}
+.soft-sheet:first-child { border-top: 0; }
+.soft-sheet.is-empty { min-height: 0; padding-block: 7px; }
+.soft-level { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 4px; }
+.soft-num { font-family: var(--font-fun); font-size: 2rem; line-height: 1.05; }
+.soft-of { font-size: 0.75rem; color: var(--muted); }
+.soft-band { flex-basis: 100%; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.is-empty .soft-num { font-size: 1.15rem; color: var(--muted); }
+.is-empty .soft-level { grid-column: 1 / -1; }
+.is-empty .soft-band { flex-basis: auto; margin-left: 6px; }
+.soft-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.soft-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 12px; border-left: 4px solid var(--regular); background: var(--surface-2); }
+.soft-item.charmin { border-color: var(--charmin); background: var(--charmin-soft); }
+.soft-item.qn { border-color: var(--qn); background: var(--qn-soft); }
+.soft-item.angel { border-color: var(--angel); background: var(--angel-soft); }
+.soft-item.kirkland { border-color: var(--kirkland); background: var(--kirkland-soft); }
+.soft-item-name { font-weight: 700; color: var(--ink); text-decoration: none; }
+a.soft-item-name:hover { text-decoration: underline; }
+.soft-sizes { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 0.82rem; }
+.soft-sizes a { color: var(--muted); }
+.soft-joke { min-height: 76px; }
+.soft-joke-tag {
+  display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.15em 0.6em; border: 1.5px dashed currentColor; border-radius: 999px;
+}
+.soft-joke-name { margin: 0; font-family: var(--font-fun); font-size: 1.15rem; }
+.soft-joke-note { margin: 0; font-size: 0.88rem; }
+/* Grit. */
+.soft-sandpaper {
+  background:
+    radial-gradient(rgba(70, 45, 15, 0.35) 1px, transparent 1.6px) 0 0 / 5px 5px,
+    radial-gradient(rgba(255, 245, 225, 0.4) 1px, transparent 1.6px) 2.5px 2.5px / 5px 5px,
+    #D2AE7E;
+}
+.soft-corn-cob { background: #FFF1BF; }
+.soft-cloud { background: radial-gradient(120% 90% at 50% 120%, #FFFFFF 40%, #E3F1FF 100%); }
+.soft-unrated { margin-bottom: 8px; }
+.soft-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 720px; margin: 0 0 8px; }
+.soft-table td:nth-child(3) { min-width: 16em; }
+.soft-source-list { font-size: 0.9rem; }
+.soft-source-list li + li { margin-top: 4px; }
 
 /* ---------- Page ---------- */
 main.page { flex: 1; padding: 20px 0 28px; }
@@ -401,6 +475,8 @@ code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--line); padding: 14px 0 18px; font-size: 0.82rem; color: var(--muted); background: rgba(255, 248, 236, 0.9); }
 .footer-line { margin: 0; }
+.footer-line a { color: inherit; text-decoration-color: var(--line-strong); text-underline-offset: 3px; white-space: nowrap; }
+.footer-line a:hover { color: var(--ink); text-decoration-color: currentColor; }
 .lost-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 16px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 0.9rem; }
 .lost-links a { display: inline-block; padding: 6px 0; }
 
@@ -432,12 +508,15 @@ code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--
 
 @media (max-width: 640px) {
   .wrap { width: calc(100% - 24px); }
-  .header-inner { padding: 6px 0 8px; gap: 6px 10px; }
+  .header-inner { padding: 6px 0 8px; gap: 6px 10px; position: relative; }
   .mascot { width: 40px; height: 44px; }
   .brand-name { font-size: 1.1rem; }
   .brand-tag { display: none; }
-  .site-nav { width: 100%; justify-content: space-between; padding: 3px; }
-  .site-nav a { flex: 1 1 auto; text-align: center; padding: 0.35em 0.4em; font-size: 0.85rem; }
+  .site-nav { width: 100%; }
+  .nav-tabs { flex: 1; justify-content: space-between; padding: 3px; }
+  .nav-tabs a { flex: 1 1 auto; text-align: center; padding: 0.35em 0.4em; font-size: 0.85rem; }
+  /* Data moves up to the right end of the brand row, so the tab bar keeps its four tabs. */
+  .nav-extra { position: absolute; right: 0; top: 6px; height: 44px; display: flex; align-items: center; padding: 0 2px; }
   main.page { padding: 12px 0 20px; }
   .page-head { margin-bottom: 10px; }
   h1 { font-size: 1.35rem; }
@@ -446,6 +525,10 @@ code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--
   .toolbar .hint { display: none; }
   .example-note { font-size: 0.8rem; }
   .segmented label span { padding: 0.3em 0.75em; font-size: 0.85rem; }
+  .toolbar-priority .seg-label { flex-basis: 100%; }
+  .soft-sheet { grid-template-columns: 4.6rem minmax(0, 1fr); padding: 12px 12px 12px 18px; gap: 6px 10px; }
+  .soft-num { font-size: 1.6rem; }
+  .soft-scale::before { margin-inline: -6px; }
 
   .pack { padding: 8px 10px; }
   .pack-main { grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 26px; gap: 6px 8px; }
@@ -479,8 +562,20 @@ code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--
   .depth-far .drifter-scale { transform: scale(0.5); }
 }
 
-/* Four tabs on one row down to 320px: short labels below 375px, where the full ones get tight. */
-@media (max-width: 374px) {
+/* Four tabs on one row down to 320px: short labels on phones and tablets, where the full ones don't fit. */
+@media (max-width: 1023px) {
   .nav-long { display: none; }
   .nav-short { display: inline; }
+}
+/* Small tablets: the brand and the tabs don't fit side by side, so stack them like on phones. */
+@media (min-width: 641px) and (max-width: 760px) {
+  .header-inner { position: relative; }
+  .site-nav { width: 100%; }
+  .nav-tabs { flex: 1; justify-content: space-between; }
+  .nav-tabs a { flex: 1 1 auto; text-align: center; }
+  .nav-extra { position: absolute; right: 0; top: 10px; height: 63px; display: flex; align-items: center; }
+}
+/* The footer stays one line down to 320px. */
+@media (max-width: 374px) {
+  .site-footer { font-size: 0.7rem; }
 }

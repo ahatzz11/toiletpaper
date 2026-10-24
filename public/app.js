@@ -98,7 +98,7 @@
     computed.results.forEach(function (r, i) {
       var el = els[i];
       if (!el) return;
-      var s = Core.packStatus(r, computed.ranking, deal.mode);
+      var s = Core.packStatus(r, computed, deal);
       el.classList.toggle("is-winner", s.winner);
       el.querySelector(".pack-remove").disabled = deal.packs.length <= 1;
       el.querySelector('[data-k="price"]').setAttribute("aria-invalid", String(String(r.pack.price).trim() !== "" && !(r.price > 0)));
@@ -118,6 +118,7 @@
     if (box.innerHTML !== result.html) box.innerHTML = result.html;
     box.className = result.cls;
     $("judge-help").textContent = Core.MODES[deal.mode].help;
+    $("priority-help").textContent = Core.priorityHelp(deal.priority, deal.mode);
     syncURL(Core.dealQuery(deal));
   }
 
@@ -198,6 +199,13 @@
         updateDeals();
       });
     });
+    document.querySelectorAll('input[name="priority"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        if (!radio.checked) return;
+        deal.priority = radio.value;
+        updateDeals();
+      });
+    });
     $("add-pack").addEventListener("click", function () {
       if (deal.packs.length >= Core.MAX_PACKS) return;
       deal.packs.push(Core.newPack(Core.buyable()[0].id));
@@ -207,10 +215,12 @@
     $("reset-packs").addEventListener("click", function () {
       deal = Core.defaultDeal();
       checkMode("judge", deal.mode);
+      checkMode("priority", deal.priority);
       renderPacks();
     });
     setupCopyLink($("copy-link"), $("copy-status"), function () { return Core.dealLink(deal); });
     checkMode("judge", deal.mode);
+    checkMode("priority", deal.priority);
     renderPacks();
   }
 

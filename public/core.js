@@ -34,6 +34,34 @@ var TPCore = (function (D) {
   var MODE_KEYS = ["sheets", "area", "areaply"];
   var DEFAULT_MODE = "sheets";
 
+  // ---------- softness ----------
+  var SOFT = D.softness;
+  // A product's softness line ({ name, score, sources, why }), or null when it isn't rated:
+  // custom rolls, regular-roll yardsticks and lines without a good source.
+  function softnessOf(productId) {
+    var p = byId[productId];
+    var line = p && p.soft ? SOFT.lines[p.soft] : null;
+    return line && line.score != null ? line : null;
+  }
+  function softText(line) { return line ? line.score + "/" + SOFT.max : "not rated"; }
+
+  // What matters more in the calculator. Cheapest is the default and ignores softness.
+  // Balanced pays up to BALANCE_STEP more per unit for each point of softness over the cheapest
+  // pack: 2 points softer may cost up to 20% more.
+  var BALANCE_STEP = 0.1;
+  var PRIORITIES = {
+    cheap: { label: "Cheapest", name: "cheapest" },
+    balanced: { label: "Balanced", name: "balanced" },
+    soft: { label: "Softest", name: "softest" },
+  };
+  var PRIORITY_KEYS = ["cheap", "balanced", "soft"];
+  var DEFAULT_PRIORITY = "cheap";
+  function priorityHelp(priority, mode) {
+    if (priority === "balanced") return "Pays up to " + pct(BALANCE_STEP) + " more " + MODES[mode].per + " for each point of softness (out of " + SOFT.max + ").";
+    if (priority === "soft") return "The softest rated pack wins. Price breaks ties.";
+    return "Lowest price wins. Softness doesn't count.";
+  }
+
   // ---------- formatting ----------
   function fix(n, d) {
     return n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -68,6 +96,15 @@ var TPCore = (function (D) {
   //   custom:<sheets>:<width>x<length>:<ply>, for example custom:300:4x3.9:2,12,15.99
   // Roll converter: /convert?roll=<product id>&mode=area
   // Bad values are dropped (pages) or reported (API), never guessed.
+
+  function parsePriority(value, problems) {
+    if (value == null || value === "") return DEFAULT_PRIORITY;
+    var v = String(value).toLowerCase();
+    v = { cheapest: "cheap", price: "cheap", balance: "balanced", softest: "soft" }[v] || v;
+    if (PRIORITIES[v]) return v;
+    problems.push({ param: "p", message: "p must be cheap, balanced or soft, not \"" + String(value).slice(0, 40) + "\"." });
+    return DEFAULT_PRIORITY;
+  }
 
   function parseMode(value, problems) {
     if (value == null || value === "") return DEFAULT_MODE;
@@ -119,6 +156,7 @@ var TPCore = (function (D) {
   function defaultDeal() {
     return {
       mode: DEFAULT_MODE,
+      priority: DEFAULT_PRIORITY,
       example: true,
       packs: D.exampleRows.map(function (r) { return newPack(r.productId, r.rolls, r.price.toFixed(2)); }),
     };
@@ -140,6 +178,7 @@ var TPCore = (function (D) {
   function parseDeal(params, strict) {
     var problems = [];
     var mode = parseMode(params.get("mode"), problems);
+    var priority = parsePriority(params.get("p"), problems);
     var packs = [];
     var any = false;
     for (var i = 0; i < PARAMS.length; i++) {
@@ -153,9 +192,10 @@ var TPCore = (function (D) {
     if (!any || packs.length === 0) {
       var d = defaultDeal();
       d.mode = mode;
+      d.priority = priority;
       return { state: d, problems: problems, linked: false };
     }
-    return { state: { mode: mode, example: false, packs: packs }, problems: problems, linked: true };
+    return { state: { mode: mode, priority: priority, example: false, packs: packs }, problems: problems, linked: true };
   }
 
   function packParam(pack) {
@@ -169,8 +209,10 @@ var TPCore = (function (D) {
 
   // Query string for a state, or "" for the untouched example.
   function dealQuery(state) {
-    if (state.example && state.mode === DEFAULT_MODE) return "";
+    var priority = PRIORITIES[state.priority] ? state.priority : DEFAULT_PRIORITY;
+    if (state.example && state.mode === DEFAULT_MODE && priority === DEFAULT_PRIORITY) return "";
     var parts = ["mode=" + state.mode];
+    if (priority !== DEFAULT_PRIORITY) parts.push("p=" + priority);
     if (!state.example) {
       state.packs.forEach(function (pack, i) {
         if (i >= MAX_PACKS || !packIsLinkable(pack)) return;
@@ -225,7 +267,7 @@ var TPCore = (function (D) {
   }
 
   function computePack(pack) {
-    var r = { pack: pack, spec: packSpec(pack), rolls: num(pack.rolls), price: num(pack.price), problem: null };
+    var r = { pack: pack, spec: packSpec(pack), soft: softnessOf(pack.productId), rolls: num(pack.rolls), price: num(pack.price), problem: null };
     if (!r.spec) r.problem = "Fill in all four custom numbers (each above 0).";
     else if (!(r.rolls > 0)) r.problem = "Enter how many rolls are in the pack.";
     if (!r.problem) {
@@ -255,9 +297,45 @@ var TPCore = (function (D) {
     };
   }
 
+  // Of these packs, the softest, and of those the cheapest (within half a percent).
+  function softestOf(pool, mode) {
+    var top = Math.max.apply(null, pool.map(function (r) { return r.soft.score; }));
+    var softest = pool.filter(function (r) { return r.soft.score === top; });
+    var min = Math.min.apply(null, softest.map(function (r) { return r.cost[mode]; }));
+    return softest.filter(function (r) { return r.cost[mode] <= min * 1.005; });
+  }
+
+  // The winner for a priority. reason says why, for the explanation:
+  //   cheap            the cheapest (priority is cheap)
+  //   none-rated       no priced pack is rated, so the cheapest
+  //   cheapest-unrated Balanced, but the cheapest isn't rated, so it can't be weighed: the cheapest
+  //   balanced-cheap   Balanced, nothing softer is cheap enough: the cheapest
+  //   balanced-soft    Balanced, a softer pack is within budget
+  //   soft             the softest rated pack
+  // unrated lists priced packs left out because they aren't rated.
+  function pick(results, ranking, mode, priority) {
+    if (!ranking) return null;
+    var cheapest = ranking.winners;
+    var priced = results.filter(function (r) { return r.priced; });
+    var rated = priced.filter(function (r) { return r.soft; });
+    var unrated = priced.filter(function (r) { return !r.soft; });
+    if (priority === "cheap") return { winners: cheapest, reason: "cheap", unrated: [] };
+    if (!rated.length) return { winners: cheapest, reason: "none-rated", unrated: unrated };
+    if (priority === "soft") return { winners: softestOf(rated, mode), reason: "soft", unrated: unrated };
+    var base = cheapest.filter(function (r) { return r.soft; });
+    if (!base.length) return { winners: cheapest, reason: "cheapest-unrated", unrated: unrated };
+    var baseScore = Math.max.apply(null, base.map(function (r) { return r.soft.score; }));
+    var worth = rated.filter(function (r) {
+      return r.soft.score > baseScore && r.cost[mode] <= ranking.min * (1 + BALANCE_STEP * (r.soft.score - baseScore)) * 1.000001;
+    });
+    if (!worth.length) return { winners: cheapest, reason: "balanced-cheap", unrated: unrated, baseScore: baseScore };
+    return { winners: softestOf(worth, mode), reason: "balanced-soft", unrated: unrated, baseScore: baseScore };
+  }
+
   function computeDeal(state) {
     var results = state.packs.map(computePack);
-    return { results: results, ranking: rank(results, state.mode) };
+    var ranking = rank(results, state.mode);
+    return { results: results, ranking: ranking, pick: pick(results, ranking, state.mode, state.priority || DEFAULT_PRIORITY) };
   }
 
   // Price per unit on each row: cents per 100 sheets, or dollars per 10 sq ft.
@@ -267,19 +345,23 @@ var TPCore = (function (D) {
   }
 
   // Everything a pack row shows, for the server-rendered HTML and for live updates in the browser.
-  function packStatus(r, ranking, mode) {
-    var winners = ranking ? ranking.winners : [];
+  var WIN_LABEL = { cheap: "Best deal", balanced: "Best balance", soft: "Softest" };
+  function packStatus(r, deal, state) {
+    var ranking = deal.ranking;
+    var mode = state.mode;
+    var winners = deal.pick ? deal.pick.winners : [];
     var s = { value: "", unit: "", vs: "", vsClass: "", winner: winners.indexOf(r) >= 0, meta: "", warning: r.problem || "" };
     if (r.priced) {
       var t = scoreText(r, mode);
       s.value = t.value;
       s.unit = t.unit;
-      if (s.winner) { s.vs = winners.length > 1 ? "Tied best" : "Best deal"; s.vsClass = "win"; }
+      if (s.winner) { s.vs = winners.length > 1 ? "Tied best" : WIN_LABEL[deal.pick.reason === "none-rated" ? "cheap" : state.priority || DEFAULT_PRIORITY]; s.vsClass = "win"; }
+      else if (ranking && r.cost[mode] <= ranking.min * 1.005) { s.vs = "Cheapest"; }
       else if (ranking) { s.vs = "+" + pct(r.cost[mode] / ranking.min - 1) + " more"; s.vsClass = "lose"; }
     } else if (!r.problem) {
       s.unit = "Add a price";
     }
-    if (r.totalSheets != null) s.meta = fix(r.totalSheets, 0) + " sheets, " + fix(r.area, 1) + " sq ft, " + r.spec.ply + "-ply";
+    if (r.totalSheets != null) s.meta = fix(r.totalSheets, 0) + " sheets, " + fix(r.area, 1) + " sq ft, " + r.spec.ply + "-ply · softness " + softText(r.soft);
     return s;
   }
 
@@ -345,6 +427,7 @@ var TPCore = (function (D) {
   function resultHTML(state, deal) {
     var ranking = deal.ranking;
     var mode = state.mode;
+    var priority = state.priority || DEFAULT_PRIORITY;
     if (!ranking) {
       var priced = deal.results.filter(function (r) { return r.priced; }).length;
       return {
@@ -353,6 +436,7 @@ var TPCore = (function (D) {
           (priced === 1 ? "Add a price for one more pack to see which is cheaper." : "Enter prices for at least two packs to see which is cheaper.") + "</p>",
       };
     }
+    if (priority !== "cheap") return pickHTML(state, deal);
     var w = ranking.winners;
     var cheaper = 1 - ranking.min / ranking.max;
     var worstName = ranking.count > 2 ? "the priciest, " + letterOf(state, ranking.worst) : letterOf(state, ranking.worst);
@@ -380,6 +464,76 @@ var TPCore = (function (D) {
     return { cls: "result has-winner", html: html };
   }
 
+  function softerWords(points) { return points >= 3 ? "a lot softer" : points === 2 ? "softer" : "a little softer"; }
+  function lettersOf(state, list) { return list.map(function (r) { return letterOf(state, r); }).join(" and "); }
+
+  // Why the Balanced or Softest pick won, in plain words. Returns { html, text }.
+  function explain(state, deal) {
+    var p = deal.pick;
+    var ranking = deal.ranking;
+    var mode = state.mode;
+    var per = MODES[mode].per;
+    var max = SOFT.max;
+    var html = "";
+    var text = "";
+    var t = function (str) { html += esc(str); text += str; };
+    var b = function (str) { html += "<strong>" + esc(str) + "</strong>"; text += str; };
+    var w = p.winners[0];
+    var tie = p.winners.length > 1;
+    var cheap = ranking.winners[0];
+    var more = function (r) { return pct(r.cost[mode] / ranking.min - 1); };
+    if (p.reason === "none-rated") {
+      t("None of these packs is rated for softness, so this is simply the cheapest " + per + ".");
+    } else if (p.reason === "cheapest-unrated") {
+      b("Cheapest " + per);
+      t(". " + (tie ? "They aren't" : "It isn't") + " rated for softness, so Balanced can't weigh " + (tie ? "them" : "it") + " against softer packs.");
+    } else if (p.reason === "balanced-cheap") {
+      b(tie ? "Tied for cheapest " + per : "Cheapest " + per);
+      var softer = deal.results.filter(function (r) { return r.priced && r.soft && r.soft.score > p.baseScore; });
+      if (!softer.length) {
+        t(", and nothing here is softer.");
+      } else {
+        var near = softer.slice().sort(function (x, y) { return x.cost[mode] - y.cost[mode]; })[0];
+        var gain = near.soft.score - p.baseScore;
+        t(". " + letterOf(state, near) + " is " + softerWords(gain) + " (" + near.soft.score + " vs " + p.baseScore + " out of " + max + ") but costs " +
+          more(near) + " more " + per + ", and Balanced pays at most " + pct(BALANCE_STEP * gain) + " more for that.");
+      }
+    } else if (p.reason === "balanced-soft") {
+      var points = w.soft.score - p.baseScore;
+      t((tie ? "They cost " : "It costs "));
+      b(more(w) + " more");
+      t(" " + per + " than " + letterOf(state, cheap) + " but " + (tie ? "are " : "is ") + softerWords(points) + " (" + w.soft.score + " vs " + p.baseScore +
+        " out of " + max + "). Balanced pays up to " + pct(BALANCE_STEP * points) + " more for that.");
+    } else {
+      b(tie ? "Equally soft" : "Softest here");
+      t(" (" + w.soft.score + " out of " + max + ")");
+      if (tie) t(" and within half a percent on price " + per + ".");
+      else if (ranking.winners.indexOf(w) >= 0) t(" and also the cheapest " + per + ".");
+      else t(". It costs " + more(w) + " more " + per + " than " + letterOf(state, cheap) + ", which " + (cheap.soft ? "is rated " + softText(cheap.soft) + "." : "isn't rated for softness."));
+    }
+    return { html: html, text: text };
+  }
+
+  function pickHTML(state, deal) {
+    var p = deal.pick;
+    var w = p.winners;
+    var fallback = p.reason === "none-rated";
+    var html = '<p class="result-kicker">' + (fallback ? "Best deal by " + MODES[state.mode].name : state.priority === "soft" ? "Softest pick" : "Best balance of price and softness") + "</p>";
+    if (w.length > 1) {
+      html += '<p class="result-title">It\'s a tie</p><p class="result-name">' + lettersOf(state, w) + "</p>";
+    } else {
+      html += '<p class="result-title"><span aria-hidden="true">👑 </span>' + letterOf(state, w[0]) + "</p>" +
+        '<p class="result-name">' + esc(packLabel(w[0].pack)) + ", " + fix(w[0].rolls, 0) + " rolls, " + money(w[0].price) + "</p>";
+    }
+    html += '<p class="result-margin">' + explain(state, deal).html + "</p>";
+    var left = p.reason === "none-rated" || p.reason === "cheapest-unrated" ? [] : p.unrated;
+    if (left.length) {
+      html += '<p class="result-alt">' + lettersOf(state, left) + (left.length > 1 ? " aren't" : " isn't") + " rated for softness, so " + (left.length > 1 ? "they're" : "it's") + " left out.</p>";
+    }
+    html += '<p class="result-alt"><a href="/softness">How softness is rated</a></p>';
+    return { cls: "result has-winner", html: html };
+  }
+
   // One plain sentence about the result, for link previews and the API.
   function resultSentence(state, deal) {
     var ranking = deal.ranking;
@@ -388,6 +542,12 @@ var TPCore = (function (D) {
       return letterOf(state, r) + " (" + (r.pack.productId === "custom" ? "custom roll" : fullName(byId[r.pack.productId])) + ", " +
         fix(r.rolls, 0) + " rolls, " + money(r.price) + ")";
     };
+    var p = deal.pick;
+    if (p && p.reason !== "cheap") {
+      var what = p.reason === "none-rated" ? " is the cheapest" : state.priority === "soft" ? " is the softest pick" : " is the balanced pick";
+      var lead = p.winners.length > 1 ? p.winners.map(describe).join(" and ") + " tie" : describe(p.winners[0]) + what;
+      return lead + ". " + explain(state, deal).text;
+    }
     var cheaper = pct(1 - ranking.min / ranking.max);
     if (ranking.winners.length > 1) {
       return ranking.winners.map(describe).join(" and ") + " tie on price " + MODES[state.mode].per + "." +
@@ -396,18 +556,19 @@ var TPCore = (function (D) {
     return describe(ranking.winners[0]) + " is the better deal: " + cheaper + " cheaper " + MODES[state.mode].per + " than " + describe(ranking.worst) + ".";
   }
 
-  function modeRadios(name, mode, labelId) {
+  function radioGroup(name, keys, defs, selected, labelId, label) {
     return '<div class="segmented" role="radiogroup" aria-labelledby="' + labelId + '">' +
-      '<span class="seg-label" id="' + labelId + '">Compare by</span>' +
-      MODE_KEYS.map(function (k) {
-        return '<label><input type="radio" name="' + name + '" value="' + k + '" autocomplete="off"' + (k === mode ? " checked" : "") + "><span>" + MODES[k].label + "</span></label>";
+      '<span class="seg-label" id="' + labelId + '">' + label + "</span>" +
+      keys.map(function (k) {
+        return '<label><input type="radio" name="' + name + '" value="' + k + '" autocomplete="off"' + (k === selected ? " checked" : "") + "><span>" + defs[k].label + "</span></label>";
       }).join("") + "</div>";
   }
+  function modeRadios(name, mode, labelId) { return radioGroup(name, MODE_KEYS, MODES, mode, labelId, "Compare by"); }
 
   function packsHTML(state, deal) {
     return state.packs.map(function (pack, i) {
       var r = deal.results[i];
-      return packRowHTML(pack, i, r, packStatus(r, deal.ranking, state.mode));
+      return packRowHTML(pack, i, r, packStatus(r, deal, state));
     }).join("");
   }
 
@@ -419,6 +580,8 @@ var TPCore = (function (D) {
       '<section class="deal-inputs" aria-label="Packs to compare">' +
       '<div class="toolbar">' + modeRadios("judge", state.mode, "judge-label") +
       '<p class="hint" id="judge-help">' + esc(MODES[state.mode].help) + "</p></div>" +
+      '<div class="toolbar toolbar-priority">' + radioGroup("priority", PRIORITY_KEYS, PRIORITIES, state.priority || DEFAULT_PRIORITY, "priority-label", "What matters more?") +
+      '<p class="hint" id="priority-help">' + esc(priorityHelp(state.priority || DEFAULT_PRIORITY, state.mode)) + "</p></div>" +
       '<p class="hint example-note" id="example-note"' + (state.example ? "" : " hidden") + ">Example prices filled in (made up). Type in what you see.</p>" +
       '<div class="packs" id="packs">' + packsHTML(state, deal) + "</div>" +
       '<div class="pack-actions">' +
@@ -570,7 +733,24 @@ var TPCore = (function (D) {
       source: p.source,
       sourceUrl: (p.sources || []).filter(function (s) { return s.url; }).map(function (s) { return s.url; })[0] || null,
       sources: (p.sources || []).map(function (s) { return { name: s.name, url: s.url || null }; }),
+      softness: softnessJSON(p.id),
       converterUrl: ORIGIN + "/convert?roll=" + p.id,
+    };
+  }
+
+  // { score, outOf, line, basis, sources } or null when the product isn't rated.
+  function softnessJSON(productId) {
+    var line = softnessOf(productId);
+    if (!line) return null;
+    return {
+      score: line.score,
+      outOf: SOFT.max,
+      line: line.name,
+      basis: line.why,
+      sources: line.sources.map(function (id) {
+        var src = SOFT.sources[id];
+        return { publisher: src.publisher, title: src.title, url: src.url, date: src.date, dateKind: src.dateKind, method: src.method };
+      }),
     };
   }
 
@@ -579,6 +759,7 @@ var TPCore = (function (D) {
       checked: D.checked,
       units: { sheetWidthIn: "inches", sheetLengthIn: "inches", sqFtPerRoll: "square feet (sheets × width × length / 144)" },
       honestRollSqFt: D.honestRollSqFt,
+      softness: { checked: SOFT.checked, outOf: SOFT.max, method: SOFT.method, about: ORIGIN + "/softness" },
       brands: BRAND_KEYS.map(function (b) {
         var br = D.brands[b];
         return { id: br.slug, name: br.name, maker: br.maker, regularRollId: br.regularId || null, regularRollSheets: br.regularId ? byId[br.regularId].sheets : null };
@@ -592,10 +773,14 @@ var TPCore = (function (D) {
     var deal = computeDeal(state);
     var ranking = deal.ranking;
     var mode = state.mode;
-    var winners = ranking ? ranking.winners : [];
+    var winners = deal.pick ? deal.pick.winners : [];
+    var cheapest = ranking ? ranking.winners : [];
     return {
       mode: mode,
       modeName: MODES[mode].name,
+      priority: state.priority,
+      priorityName: PRIORITIES[state.priority].name,
+      pickReason: deal.pick ? deal.pick.reason : null,
       packs: deal.results.map(function (r, i) {
         var p = byId[r.pack.productId];
         return {
@@ -614,7 +799,9 @@ var TPCore = (function (D) {
           pricePer100Sheets: round(r.cost.sheets * 100, 4),
           pricePerSqFt: round(r.cost.area, 4),
           pricePerSqFtPly: round(r.cost.areaply, 4),
+          softness: r.soft ? r.soft.score : null,
           best: winners.indexOf(r) >= 0,
+          cheapest: cheapest.indexOf(r) >= 0,
           percentMoreThanBest: ranking ? round((r.cost[mode] / ranking.min - 1) * 100, 1) : 0,
         };
       }),
@@ -649,7 +836,9 @@ var TPCore = (function (D) {
   }
 
   return {
-    ORIGIN: ORIGIN, MODES: MODES, MODE_KEYS: MODE_KEYS, DEFAULT_MODE: DEFAULT_MODE, MAX_PACKS: MAX_PACKS, LETTERS: LETTERS, PARAMS: PARAMS,
+    ORIGIN: ORIGIN, MODES: MODES, MODE_KEYS: MODE_KEYS, DEFAULT_MODE: DEFAULT_MODE,
+    PRIORITIES: PRIORITIES, PRIORITY_KEYS: PRIORITY_KEYS, DEFAULT_PRIORITY: DEFAULT_PRIORITY, BALANCE_STEP: BALANCE_STEP, priorityHelp: priorityHelp,
+    softnessOf: softnessOf, softText: softText, softnessJSON: softnessJSON, softerWords: softerWords, MAX_PACKS: MAX_PACKS, LETTERS: LETTERS, PARAMS: PARAMS,
     byId: byId, buyable: buyable, regularOf: regularOf,
     sqFtOf: sqFtOf, plyFtOf: plyFtOf, honestOf: honestOf, round: round,
     fix: fix, money: money, pct: pct, esc: esc, tag: tag, brandName: brandName, shortName: shortName, fullName: fullName, sizeText: sizeText,

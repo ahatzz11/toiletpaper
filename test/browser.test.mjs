@@ -12,7 +12,7 @@ import { after, before, test } from "node:test";
 import { chromium } from "playwright-core";
 import worker from "../dist-inline/index.js";
 
-const DEAL_LINK = "/?mode=sheets&a=kirkland-signature-bath-tissue,30,24.99&b=charmin-ultra-soft-mega-xl,6,9.99";
+const DEAL_LINK = "/?mode=sheets&p=soft&a=kirkland-signature-bath-tissue,30,24.99&b=charmin-ultra-soft-mega-xl,6,9.99";
 const DEAL_PACKS = ["kirkland-signature-bath-tissue,30,24.99", "charmin-ultra-soft-mega-xl,6,9.99"];
 const CONV_LINK = "/convert?roll=kirkland-signature-bath-tissue";
 
@@ -59,8 +59,8 @@ const RESTORE_STALE_FORM = () => {
     apply(el);
   };
   new MutationObserver(() => {
-    for (const name of ["judge", "conv-mode"]) {
-      flip(name, document.querySelector(`input[name="${name}"][value="area"]`), (el) => { el.checked = true; });
+    for (const [name, value] of [["judge", "area"], ["conv-mode", "area"], ["priority", "balanced"]]) {
+      flip(name, document.querySelector(`input[name="${name}"][value="${value}"]`), (el) => { el.checked = true; });
     }
     flip("pack", document.querySelector('.pack [data-k="productId"]'), (el) => { el.value = "angel-soft-mega"; });
     flip("conv", document.getElementById("conv-select"), (el) => { el.value = "angel-soft-mega"; });
@@ -80,6 +80,7 @@ test("a shared calculator link wins over everything a returning visitor has", as
   await page.selectOption('.pack >> nth=0 >> [data-k="productId"]', "angel-soft-mega");
   await page.fill('.pack >> nth=0 >> [data-k="price"]', "7.77");
   await page.check('input[name="judge"][value="area"]', { force: true });
+  await page.check('input[name="priority"][value="balanced"]', { force: true });
   await page.waitForFunction(() => location.search.includes("angel-soft-mega"));
   const edited = page.url();
 
@@ -87,6 +88,7 @@ test("a shared calculator link wins over everything a returning visitor has", as
   await page.goto(base + DEAL_LINK);
   assert.deepEqual(await packsOf(page), DEAL_PACKS);
   assert.equal(await modeOf(page, "judge"), "sheets");
+  assert.equal(await modeOf(page, "priority"), "soft");
   const fresh = await context.newPage();
   await fresh.goto(base + DEAL_LINK);
   assert.deepEqual(await packsOf(fresh), DEAL_PACKS);
@@ -118,13 +120,46 @@ test("restored form values can't override a calculator or converter link", async
   assert.ok(await page.$eval('input[name="judge"][value="area"]', (el) => el.dataset.flipped === "1"), "the stale value was applied");
   assert.deepEqual(await packsOf(page), DEAL_PACKS);
   assert.equal(await modeOf(page, "judge"), "sheets");
-  assert.match(await page.textContent("#deal-result"), /by sheet count/i);
+  assert.equal(await modeOf(page, "priority"), "soft");
+  assert.match(await page.textContent("#deal-result"), /Softest pick/);
 
   await page.goto(base + CONV_LINK);
   assert.equal(await page.$eval("#conv-select", (el) => el.value), "kirkland-signature-bath-tissue");
   assert.equal(await modeOf(page, "conv-mode"), "sheets");
   assert.match(await page.textContent("#conv-claim-check"), /^Kirkland Signature/);
   await page.close();
+});
+
+test("the header fits phones on one tab row, no taller than 103px, with Data beside the brand", async (t) => {
+  if (skip) return t.skip("Chrome isn't installed");
+  for (const width of [320, 360, 375, 390, 768, 1440]) {
+    const page = await context.newPage();
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(base + "/data");
+    const m = await page.evaluate(() => {
+      const box = (el) => el.getBoundingClientRect();
+      const tabs = [...document.querySelectorAll(".nav-tabs a")];
+      const data = box(document.querySelector(".nav-extra")), brand = box(document.querySelector(".brand"));
+      const footer = document.querySelector(".footer-line");
+      return {
+        header: box(document.querySelector(".site-header")).height,
+        rows: new Set(tabs.map((a) => Math.round(box(a).top))).size,
+        clipped: tabs.some((a) => a.scrollWidth > a.clientWidth) || document.documentElement.scrollWidth > innerWidth,
+        dataVisible: data.width > 0 && data.right <= innerWidth,
+        overlap: !(data.left >= brand.right || data.right <= brand.left || data.top >= brand.bottom || data.bottom <= brand.top),
+        current: document.querySelector('.site-nav [aria-current="page"]').textContent,
+        footerLines: Math.round(box(footer).height / parseFloat(getComputedStyle(footer).lineHeight)),
+      };
+    });
+    if (width <= 390) assert.ok(m.header <= 103, `${width}px: header ${m.header}px`);
+    else assert.ok(m.header <= 90, `${width}px: header ${m.header}px`);
+    assert.equal(m.rows, 1, `${width}px: one row of tabs`);
+    assert.equal(m.clipped, false, `${width}px: nothing clipped`);
+    assert.ok(m.dataVisible && !m.overlap, `${width}px: Data is visible and clear of the brand`);
+    assert.equal(m.current, "Data", width);
+    assert.equal(m.footerLines, 1, `${width}px: footer on one line`);
+    await page.close();
+  }
 });
 
 test("every tool control opts out of browser form restoration", async () => {

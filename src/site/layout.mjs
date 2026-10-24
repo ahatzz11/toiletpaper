@@ -3,12 +3,16 @@
 
 import { ORIGIN, SITE_NAME, SHARE } from "./config.mjs";
 
+// The four tabs, then Data as a quieter link (top right of the brand row on phones).
+// short labels show on narrow phones.
 const NAV = [
   { key: "deal", path: "/", label: "Best deal", short: "Deal" },
   { key: "convert", path: "/convert", label: "Roll converter", short: "Converter" },
-  { key: "about", path: "/about", label: "How it works" },
-  { key: "data", path: "/data", label: "Data" },
+  { key: "softness", path: "/softness", label: "Softness" },
+  { key: "about", path: "/about", label: "How it works", short: "About" },
+  { key: "data", path: "/data", label: "Data", secondary: true },
 ];
+export const REPO = "https://github.com/ahatzz11/toiletpaper";
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const abs = (path) => ORIGIN + path;
@@ -48,6 +52,15 @@ function jsonLd(page, ctx) {
       itemListElement: [{ name: "Home", path: "/" }, ...page.crumbs].map((c, i) => ({
         "@type": "ListItem", position: i + 1, name: c.name, item: abs(c.path),
       })),
+    });
+  }
+  if (page.itemList) {
+    graph.push({
+      "@type": "ItemList",
+      name: page.itemList.name,
+      itemListOrder: "https://schema.org/ItemListOrderAscending",
+      numberOfItems: page.itemList.items.length,
+      itemListElement: page.itemList.items.map((item, i) => ({ "@type": "ListItem", position: i + 1, name: item.name, url: abs(item.path) })),
     });
   }
   if (page.faq?.length) {
@@ -102,7 +115,9 @@ export function renderPage(page, ctx) {
     `<link rel="manifest" href="/site.webmanifest">`,
   ].filter(Boolean).map((l) => "  " + l).join("\n");
 
-  const nav = NAV.map((n) => `        <a href="${n.path}"${n.key === page.nav ? ' aria-current="page"' : ""}>${n.short ? `<span class="nav-long">${n.label}</span><span class="nav-short">${n.short}</span>` : n.label}</a>`).join("\n");
+  const link = (n, cls) => `<a href="${n.path}"${n.key === page.nav ? ' aria-current="page"' : ""}${cls ? ` class="${cls}"` : ""}>${n.short ? `<span class="nav-long">${n.label}</span><span class="nav-short">${n.short}</span>` : n.label}</a>`;
+  const nav = `        <div class="nav-tabs">\n${NAV.filter((n) => !n.secondary).map((n) => "          " + link(n)).join("\n")}\n        </div>\n` +
+    NAV.filter((n) => n.secondary).map((n) => "        " + link(n, "nav-extra")).join("\n");
 
   return `<!doctype html>
 <html lang="en">
@@ -120,7 +135,7 @@ ${meta}
     :where(.brand) { display: flex; align-items: center; gap: 10px; text-decoration: none; }
     :where(.mascot) { width: 58px; height: 63px; flex: none; }
     :where(.brand-text) { display: flex; flex-direction: column; line-height: 1.15; }
-    :where(.site-nav) { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    :where(.site-nav), :where(.nav-tabs) { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
     :where(.nav-short) { display: none; }
     @media (max-width: 640px) { :where(.mascot) { width: 40px; height: 44px; } }
   </style>
@@ -174,7 +189,7 @@ ${nav}
 
   <footer class="site-footer">
     <div class="wrap">
-      <p class="footer-line">Not affiliated with any brand</p>
+      <p class="footer-line">Not affiliated with any brand <span aria-hidden="true">·</span> <a href="${REPO}">Open source on GitHub</a></p>
     </div>
   </footer>
 

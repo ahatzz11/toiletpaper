@@ -80,6 +80,54 @@ export function buildSite(D, Core) {
   const oldSM = byId["charmin-ultra-strong-super-mega-older"];
   const newXL = byId["charmin-ultra-strong-mega-xl"];
   const qnSM = [byId["quilted-northern-ultra-soft-strong-super-mega-378"], byId["quilted-northern-ultra-soft-strong-super-mega-438"]];
+  // ---------- softness ----------
+  const S = D.softness;
+  const softLines = Object.entries(S.lines).map(([key, l]) => ({ key, ...l, products: buyable.filter((p) => p.soft === key) }));
+  const ratedLines = softLines.filter((l) => l.score != null).sort((a, b) => a.score - b.score);
+  const unratedLines = softLines.filter((l) => l.score == null);
+  const softest = ratedLines.filter((l) => l.score === ratedLines.at(-1)?.score);
+  // A word for each part of the scale, so the numbers read as something.
+  const softBand = (n) => n >= 9 ? "Plush" : n >= 7 ? "Soft" : n >= 5 ? "Fine" : n >= 3 ? "Thin" : "Scratchy";
+  // "Super Mega (378 sheets)" when a line has two packs of the same size.
+  const sizeLabel = (p) => {
+    const twin = buyable.some((o) => o !== p && o.soft === p.soft && o.size === p.size);
+    const note = / \(([^)]+)\)$/.exec(p.name);
+    return (p.size ?? `${p.sheets}-sheet roll`) + (twin && note ? ` (${note[1]})` : "");
+  };
+  const sizeLinks = (l) => l.products.map((p) => `<a href="${convLink(p)}">${esc(sizeLabel(p))}</a>`).join("");
+  const softSourceLinks = (l) => l.sources.map((id) => {
+    const s = S.sources[id];
+    return `<a href="${esc(s.url)}">${esc(s.publisher)}</a> <span class="nowrap">(${esc(s.dateKind)} ${esc(s.date)})</span>`;
+  }).join("; ");
+  const softItem = (l) => `<li class="soft-item ${l.products[0].brand}"><a class="soft-item-name" href="/softness#why-${l.key}">${esc(l.name)}</a>` +
+    `<span class="soft-sizes">${sizeLinks(l)}</span></li>`;
+
+  function softScaleHTML() {
+    const rough = S.jokes.filter((j) => j.end === "rough");
+    const soft = S.jokes.filter((j) => j.end === "soft");
+    const joke = (j) => `<li class="soft-sheet soft-joke soft-${j.id}"><p class="soft-level"><span class="soft-joke-tag">Joke</span></p>` +
+      `<div class="soft-joke-body"><p class="soft-joke-name">${j.icon ? `<span aria-hidden="true">${j.icon} </span>` : ""}${esc(j.name)}</p><p class="soft-joke-note">${esc(j.note)}</p></div></li>`;
+    const levels = [];
+    for (let n = 1; n <= S.max; n++) {
+      const here = ratedLines.filter((l) => l.score === n);
+      levels.push(`<li class="soft-sheet${here.length ? "" : " is-empty"}" id="soft-${n}"><p class="soft-level"><span class="soft-num">${n}</span><span class="soft-of"> out of ${S.max}</span> <span class="soft-band">${softBand(n)}</span></p>` +
+        (here.length ? `<ul class="soft-items">${here.map(softItem).join("")}</ul>` : "") + "</li>");
+    }
+    return `<div class="soft-scale"><ol class="soft-strip" aria-label="Softness scale, least soft first">${[...rough.map(joke), ...levels, ...soft.map(joke)].join("")}</ol></div>`;
+  }
+
+  function softTableHTML() {
+    const rows = [...ratedLines.slice().reverse(), ...unratedLines].map((l) =>
+      `<tr class="${l.products[0].brand}" id="why-${l.key}"><td class="brand-cell">${esc(l.name)}</td>` +
+      `<td class="num">${l.score != null ? `${l.score}/${S.max}` : "Not rated"}</td><td>${l.why ? esc(l.why) : ""}</td>` +
+      `<td>${l.sources.length ? softSourceLinks(l) : "No usable test yet"}</td></tr>`).join("");
+    return '<div class="table-scroll" tabindex="0" role="region" aria-label="Softness scores table"><table class="sources soft-table"><caption class="visually-hidden">Softness score, reasoning and sources for each line</caption>' +
+      '<thead><tr><th scope="col">Line</th><th scope="col">Score</th><th scope="col">Why</th><th scope="col">Sources</th></tr></thead><tbody>' + rows + "</tbody></table></div>";
+  }
+  const softMethodHTML = `<ul>${S.method.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>`;
+  const softSourcesHTML = `<ul class="soft-source-list">${Object.values(S.sources).map((s) =>
+    `<li><a href="${esc(s.url)}">${esc(s.publisher)}: ${esc(s.title)}</a>. ${esc(s.method)}. ${esc(s.dateKind[0].toUpperCase() + s.dateKind.slice(1))} ${esc(s.date)}.</li>`).join("")}</ul>`;
+
   const faq = [
     {
       id: "why-sheets",
@@ -149,6 +197,13 @@ export function buildSite(D, Core) {
       html: `From the makers first: the sheet counts, sheet sizes and "= N regular" claims on ${listJoin(brands.map((b) => esc(b.name)))}'s own sites and pack photos. When a maker doesn't print a number, we use a retailer listing for the same pack and say so. Last checked ${esc(D.checked)}. Packs change, so trust the one in your hand, and if it doesn't match, type its numbers into <strong>Custom</strong>. Every number has a link on <a href="/data#sources">Data &amp; API</a>.`,
     },
     {
+      id: "softest",
+      q: "Which toilet paper is the softest?",
+      html: softest.length
+        ? `Of the rolls we track, ${listJoin(softest.map((l) => esc(l.name)))} ${softest.length > 1 ? "score" : "scores"} highest, ${softest[0].score} out of ${S.max}. Softness has no industry standard, so the scores come from published tests and each brand's own tiers. <a href="/softness">The softness scale</a> shows every roll, with sources. Sandpaper is on there too, for scale.`
+        : `We haven't rated any rolls yet. <a href="/softness">The softness scale</a> explains how we rate them.`,
+    },
+    {
       id: "data",
       q: "Can I use these numbers?",
       html: `Yes, they're free to use. Please link back to toiletpaper.app. <a href="/data">Data &amp; API</a> has every roll in one table and a way to get it as JSON.`,
@@ -207,6 +262,7 @@ export function buildSite(D, Core) {
         <li><strong>Sheets</strong> divides the price by the total sheets in the pack. It's the simplest comparison, but sheet sizes differ a little between brands and lines.</li>
         <li><strong>Paper area</strong> divides by square feet of paper (sheets × sheet width × sheet length), so bigger sheets count for more.</li>
         <li><strong>Area × ply</strong> also counts a 3-ply square as 1.5 times a 2-ply square.</li>
+        <li><strong>What matters more</strong> picks the winner. Cheapest ignores softness. Balanced pays up to ${Core.pct(Core.BALANCE_STEP)} more per sheet for each point of softness (out of ${D.softness.max}). Softest picks the softest rated roll. <a href="/softness">How softness is rated</a>.</li>
         <li>Roll sizes come from pack labels and can change. If your pack says something different, pick <strong>Custom</strong> and type in its numbers. <a href="/data#sources">Sources and notes</a>.</li>
         <li>The address bar always holds a link to exactly what you typed, so you can share a comparison.</li>
       </ul>
@@ -287,6 +343,15 @@ export function buildSite(D, Core) {
       <p class="disclaimer">Not affiliated with ${esc(brandList)}. Brand names belong to their owners.</p>
     </section>
 
+    <section class="about-section" id="softness" aria-labelledby="softness-title">
+      <h2 id="softness-title">Softness scores</h2>
+      <p>Softness has no industry standard or printed number, so each line gets a coarse score from 1 to ${S.max}. Checked ${esc(S.checked)}. <a href="/softness">See them on the scale</a>.</p>
+      ${softMethodHTML}
+      ${softTableHTML()}
+      <h3>Every softness source</h3>
+      ${softSourcesHTML}
+    </section>
+
     <section class="about-section" id="api" aria-labelledby="api-title">
       <h2 id="api-title">JSON API</h2>
       <p>Read-only, no key, open CORS. GET and HEAD only.</p>
@@ -318,6 +383,30 @@ export function buildSite(D, Core) {
         <li><a href="/llms-full.txt">/llms-full.txt</a>: every roll, the method and the FAQ as plain text.</li>
         <li><a href="/openapi.json">/openapi.json</a>: the API description.</li>
       </ul>
+    </section>`,
+  });
+
+  pages.push({
+    key: "softness", path: "/softness", nav: "softness", mainClass: "page-softness", showCrumbs: true,
+    crumbs: [{ name: "Softness", path: "/softness" }],
+    title: "Softness scale: which toilet paper is softest? | Toilet Paper Math",
+    ogTitle: "The toilet paper softness scale",
+    description: `How soft ${brandAnd} toilet paper is, from 1 to ${S.max}, scored from published tests. Sandpaper included for scale.`,
+    itemList: { name: "Toilet paper lines from least to most soft", items: ratedLines.map((l) => ({ name: `${l.name}: ${l.score} out of ${S.max}`, path: convLink(l.products[0]) })) },
+    body: `<div class="page-head">
+      <h1>The softness scale</h1>
+      <p class="lede">Every roll we could rate, from rough to fluffy. It gets softer as you scroll.</p>
+    </div>
+    <p class="soft-legend">Scores run from 1 to ${S.max}, built from published tests and each brand's own tiers. A few things that aren't toilet paper are on here for scale, and they're labeled.</p>
+    ${softScaleHTML()}
+    ${unratedLines.length ? `<section class="about-section" aria-labelledby="unrated-title"><h2 id="unrated-title">Not rated</h2><p>We couldn't find a good source for these, so they stay off the scale instead of getting a guess:</p><ul class="soft-items soft-unrated">${unratedLines.map((l) => `<li class="soft-item ${l.products[0].brand}"><span class="soft-item-name">${esc(l.name)}</span><span class="soft-sizes">${sizeLinks(l)}</span></li>`).join("")}</ul></section>` : ""}
+    <p class="soft-cta"><a class="btn btn-primary" href="/?p=balanced">Compare packs with softness</a> <span class="hint">The calculator can pick the cheapest, the softest or a balance of both.</span></p>
+    <section class="about-section" aria-labelledby="soft-how-title">
+      <h2 id="soft-how-title">How the scores work</h2>
+      ${softMethodHTML}
+      <p>Regular rolls are each brand's measuring unit, not a pack you buy, so they aren't on the scale. Custom rolls in the calculator are never rated.</p>
+      ${softTableHTML()}
+      <p>Every source, with dates, is on <a href="/data#softness">Data &amp; API</a>.</p>
     </section>`,
   });
 
@@ -425,5 +514,5 @@ export function buildSite(D, Core) {
     <ul class="lost-links">${[{ path: "/about", crumbs: [{ name: "How it works" }] }, ...guides].map((g) => `<li><a href="${g.path}">${esc(g.crumbs[0].name)}</a></li>`).join("")}</ul>`,
   });
 
-  return { pages, faq, guides, brands, brandList, siteDescription, apiExample };
+  return { pages, faq, guides, brands, brandList, siteDescription, apiExample, softLines, ratedLines, unratedLines, softBand };
 }

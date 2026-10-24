@@ -35,6 +35,7 @@ var TP_DATA = {
       id: "charmin-ultra-soft-mega",
       brand: "charmin",
       line: "Ultra Soft", size: "Mega",
+      soft: "charmin-ultra-soft",
       name: "Ultra Soft Mega",
       sheets: 208, width: 4, length: 3.92, ply: 2,
       claim: 4,
@@ -53,6 +54,7 @@ var TP_DATA = {
       id: "charmin-ultra-soft-mega-xl",
       brand: "charmin",
       line: "Ultra Soft", size: "Mega XL",
+      soft: "charmin-ultra-soft",
       name: "Ultra Soft Mega XL",
       sheets: 312, width: 4, length: 3.92, ply: 2,
       claim: 6,
@@ -71,6 +73,7 @@ var TP_DATA = {
       id: "charmin-ultra-soft-mega-xxl",
       brand: "charmin",
       line: "Ultra Soft", size: "Mega XXL",
+      soft: "charmin-ultra-soft",
       name: "Ultra Soft Mega XXL",
       sheets: 416, width: 4.27, length: 3.72, ply: 2,
       claim: 8,
@@ -89,6 +92,7 @@ var TP_DATA = {
       id: "charmin-ultra-strong-mega",
       brand: "charmin",
       line: "Ultra Strong", size: "Mega",
+      soft: "charmin-ultra-strong",
       name: "Ultra Strong Mega",
       sheets: 220, width: 4, length: 3.92, ply: 2,
       claim: 4,
@@ -106,6 +110,7 @@ var TP_DATA = {
       id: "charmin-ultra-strong-mega-xl",
       brand: "charmin",
       line: "Ultra Strong", size: "Mega XL",
+      soft: "charmin-ultra-strong",
       name: "Ultra Strong Mega XL",
       sheets: 330, width: 4, length: 3.92, ply: 2,
       claim: 6,
@@ -124,6 +129,7 @@ var TP_DATA = {
       id: "charmin-ultra-strong-mega-xxl",
       brand: "charmin",
       line: "Ultra Strong", size: "Mega XXL",
+      soft: "charmin-ultra-strong",
       name: "Ultra Strong Mega XXL",
       sheets: 440, width: 4.27, length: 3.72, ply: 2,
       claim: 8,
@@ -143,6 +149,7 @@ var TP_DATA = {
       id: "charmin-ultra-strong-super-mega-older",
       brand: "charmin",
       line: "Ultra Strong", size: "Super Mega",
+      soft: "charmin-ultra-strong",
       name: "Ultra Strong Super Mega (older pack)",
       sheets: 363, width: 4, length: 3.92, ply: 2,
       claim: 6,
@@ -158,6 +165,7 @@ var TP_DATA = {
       id: "charmin-essentials-mega",
       brand: "charmin",
       line: "Essentials", size: "Mega",
+      soft: "charmin-essentials",
       name: "Essentials Mega (1-ply)",
       sheets: 407, width: 4, length: 3.92, ply: 1,
       claim: 4,
@@ -190,6 +198,7 @@ var TP_DATA = {
       id: "quilted-northern-ultra-plush-mega",
       brand: "qn",
       line: "Ultra Plush", size: "Mega",
+      soft: "qn-ultra-plush",
       name: "Ultra Plush Mega",
       sheets: 255, width: 4, length: 3.8, ply: 3,
       claim: 4,
@@ -208,6 +217,7 @@ var TP_DATA = {
       id: "quilted-northern-ultra-plush-super-mega",
       brand: "qn",
       line: "Ultra Plush", size: "Super Mega",
+      soft: "qn-ultra-plush",
       name: "Ultra Plush Super Mega",
       sheets: 378, width: 3.7, length: 4.1, ply: 3,
       claim: 6,
@@ -225,6 +235,7 @@ var TP_DATA = {
       id: "quilted-northern-ultra-soft-strong-mega",
       brand: "qn",
       line: "Ultra Soft & Strong", size: "Mega",
+      soft: "qn-ultra-soft-strong",
       name: "Ultra Soft & Strong Mega",
       sheets: 255, width: 4, length: 3.8, ply: 2,
       claim: 4,
@@ -243,6 +254,7 @@ var TP_DATA = {
       id: "quilted-northern-ultra-soft-strong-super-mega-378",
       brand: "qn",
       line: "Ultra Soft & Strong", size: "Super Mega",
+      soft: "qn-ultra-soft-strong",
       name: "Ultra Soft & Strong Super Mega (378 sheets)",
       sheets: 378, width: 3.7, length: 4.1, ply: 2,
       claim: 6,
@@ -260,6 +272,7 @@ var TP_DATA = {
       id: "quilted-northern-ultra-soft-strong-super-mega-438",
       brand: "qn",
       line: "Ultra Soft & Strong", size: "Super Mega",
+      soft: "qn-ultra-soft-strong",
       name: "Ultra Soft & Strong Super Mega (438 sheets)",
       sheets: 438, width: 3.7, length: 4.1, ply: 2,
       claim: 6,
@@ -293,6 +306,7 @@ var TP_DATA = {
       id: "angel-soft-mega",
       brand: "angel",
       line: "Angel Soft", size: "Mega",
+      soft: "angel-soft",
       name: "Mega",
       sheets: 320, width: 3.8, length: 4, ply: 2,
       claim: 4,
@@ -311,6 +325,7 @@ var TP_DATA = {
       id: "angel-soft-mega-xl",
       brand: "angel",
       line: "Angel Soft", size: "Mega XL",
+      soft: "angel-soft",
       name: "Mega XL",
       sheets: 480, width: 3.8, length: 4, ply: 2,
       claim: 6,
@@ -345,6 +360,7 @@ var TP_DATA = {
       id: "kirkland-signature-bath-tissue",
       brand: "kirkland",
       line: "Bath Tissue", size: null,
+      soft: "kirkland-bath-tissue",
       name: "Bath Tissue",
       sheets: 380, width: 4.5, length: 4, ply: 2,
       claim: null,
@@ -362,6 +378,7 @@ var TP_DATA = {
       id: "kirkland-signature-ultra-soft-bath-tissue",
       brand: "kirkland",
       line: "Ultra Soft", size: null,
+      soft: "kirkland-ultra-soft",
       name: "Ultra Soft Bath Tissue",
       sheets: 231, width: 4.5, length: 4, ply: 2,
       claim: null,
@@ -376,6 +393,90 @@ var TP_DATA = {
       flags: {},
     },
   ],
+
+  // Softness, 1 (scratchy) to 10 (softest), one score per product line. Each product's `soft`
+  // key picks its line. There is no industry standard, so a score comes from published tests
+  // first and the maker's own tier names second (see `method`). A line with no good source has
+  // score: null and shows as "not rated". Regular rolls and custom rolls are never rated.
+  softness: {
+    checked: "October 2026",
+    max: 10,
+    method: [
+      "Start from TechGearLab's tester-panel softness score (updated February 2025), the one current test that puts a number on most of these lines, rounded to a whole number.",
+      "Move a line by one point at most when another independent test clearly disagrees: Good Housekeeping Institute (updated February 2026, a blind tester panel plus an EmTec Tissue Softness Analyzer run by NC State) or Reviewed (updated May 2024, hands-on).",
+      "A brand's own tier names only order lines within that brand. Charmin sells Ultra Soft for comfort and Ultra Strong for strength; Quilted Northern calls Ultra Plush its cushiest. They never set a score on their own.",
+      "A line is rated only when a current test covers that line. Tests of discontinued versions, single blog posts, retailer star ratings and paywalled results we couldn't read don't count.",
+      "One score covers every size in a line (Mega, Mega XL, Super Mega): the tests rate the paper, not the roll size.",
+      "Scores are coarse on purpose. Read a one-point gap as a small difference and three points or more as a clear one.",
+    ],
+    sources: {
+      "gh-2026": {
+        publisher: "Good Housekeeping Institute", title: "The Best Toilet Paper, According to Expert Testing",
+        url: "https://www.goodhousekeeping.com/home-products/g32469568/best-toilet-paper/",
+        date: "2026-02-10", dateKind: "updated", method: "Blind tester panel plus an EmTec Tissue Softness Analyzer run by NC State",
+      },
+      "tgl-2025": {
+        publisher: "TechGearLab", title: "The Best Toilet Paper (Tested & Ranked)",
+        url: "https://www.techgearlab.com/topics/home/best-toilet-paper",
+        date: "2025-02-13", dateKind: "updated", method: "Tester panel, a softness score for each of 13 rolls",
+      },
+      "reviewed-2024": {
+        publisher: "Reviewed (USA Today)", title: "The Best Toilet Paper",
+        url: "https://www.reviewed.com/home-outdoors/best-right-now/the-best-toilet-paper",
+        date: "2024-05-02", dateKind: "updated", method: "Hands-on comfort and durability testing",
+      },
+      "charmin-tiers": {
+        publisher: "Charmin", title: "Charmin Ultra Soft vs. Ultra Strong: How to Choose Your Roll",
+        url: "https://www.charmin.com/en-us/tips-and-articles/charmin-ultra-soft-vs-ultra-strong-whats-the-difference",
+        date: "2026-10", dateKind: "checked", method: "The maker's description of its tiers (undated)",
+      },
+      "qn-plush": {
+        publisher: "Quilted Northern", title: "Ultra Plush",
+        url: "https://www.quiltednorthern.com/toilet-paper/ultra-plush",
+        date: "2026-10", dateKind: "checked", method: "The maker's description of its tiers (undated)",
+      },
+    },
+    lines: {
+      "charmin-ultra-soft": {
+        name: "Charmin Ultra Soft", score: 10, sources: ["gh-2026", "tgl-2025", "reviewed-2024", "charmin-tiers"],
+        why: "TechGearLab scored it 8.6, tied for the top. Good Housekeeping's 2026 lab and panel test found it the softest it tested, so it gets the extra point. Reviewed picked it for comfort.",
+      },
+      "charmin-ultra-strong": {
+        name: "Charmin Ultra Strong", score: 6, sources: ["tgl-2025", "reviewed-2024", "charmin-tiers"],
+        why: "TechGearLab scored it 6.8, which rounds to 7. Reviewed found it not as soft as Ultra Soft or several others, and Charmin sells it for strength, so it sits a point under Quilted Northern Ultra Soft & Strong.",
+      },
+      "charmin-essentials": {
+        name: "Charmin Essentials (1-ply)", score: null, sources: [],
+        why: "The tests we found (TechGearLab 2025, Reviewed 2024) rated the old Essentials Soft, which Charmin replaced with this 1-ply roll. No test of the current roll yet.",
+      },
+      "qn-ultra-plush": {
+        name: "Quilted Northern Ultra Plush", score: 8, sources: ["tgl-2025", "gh-2026", "reviewed-2024", "qn-plush"],
+        why: "TechGearLab scored it 7.8. Good Housekeeping's 2026 test gave it some of the highest softness scores, and Reviewed called it one of the most comfortable rolls it tested.",
+      },
+      "qn-ultra-soft-strong": {
+        name: "Quilted Northern Ultra Soft & Strong", score: 7, sources: ["tgl-2025", "gh-2026", "reviewed-2024"],
+        why: "TechGearLab scored it 7.4. Good Housekeeping found it not quite as soft as Ultra Plush, and Reviewed not quite as comfortable as Charmin Ultra Soft.",
+      },
+      "angel-soft": {
+        name: "Angel Soft", score: 5, sources: ["tgl-2025", "reviewed-2024"],
+        why: "TechGearLab scored Angel Soft Double 5.4, and Reviewed found Angel Soft less comfortable than the top brands. Neither test names the Mega sizes, so this assumes the same paper.",
+      },
+      "kirkland-bath-tissue": {
+        name: "Kirkland Signature Bath Tissue", score: null, sources: [],
+        why: "The tests we found are old (Consumer Reports 2014, a 2018 panel of an older 425-sheet roll) or a single blog post. Consumer Reports' 2025 test includes Kirkland, but its results are paywalled.",
+      },
+      "kirkland-ultra-soft": {
+        name: "Kirkland Signature Ultra Soft", score: null, sources: [],
+        why: "No independent test found. The name says it's softer than the regular Kirkland roll, but a name alone isn't a score.",
+      },
+    },
+    // Not toilet paper, not tested, not scored. They sit off the ends of the /softness scale.
+    jokes: [
+      { id: "sandpaper", name: "Sandpaper", end: "rough", note: "80 grit. Great for decks." },
+      { id: "corn-cob", icon: "🌽", name: "A dried corn cob", end: "rough", note: "The outhouse classic. We've come a long way." },
+      { id: "cloud", icon: "☁️", name: "A cloud", end: "soft", note: "Unbeatable softness. Not sold in Mega rolls." },
+    ],
+  },
 
   // Older sheet counts seen on listings for the same product name.
   history: {
