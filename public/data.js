@@ -470,11 +470,13 @@ var TP_DATA = {
         why: "No independent test found. The name says it's softer than the regular Kirkland roll, but a name alone isn't a score.",
       },
     },
-    // Not toilet paper, not tested, not scored. They sit off the ends of the /softness scale.
-    jokes: [
-      { id: "sandpaper", name: "Sandpaper", end: "rough", note: "80 grit. Great for decks." },
-      { id: "corn-cob", icon: "🌽", name: "A dried corn cob", end: "rough", note: "The outhouse classic. We've come a long way." },
-      { id: "cloud", icon: "☁️", name: "A cloud", end: "soft", note: "Unbeatable softness. Not sold in Mega rolls." },
+    // Reference points that aren't products, placed on the /softness scale for comparison. They live only
+    // on that page: not in the calculator, the converter, the API or the roll tables.
+    anchors: [
+      { id: "sandpaper", name: "Sandpaper", score: 0, note: "80 grit. Great for decks." },
+      { id: "leaves", name: "Leaves", score: 2, note: "Free. Seasonal. Check for poison ivy." },
+      { id: "porta-potty", name: "Average port-a-potty toilet paper", score: 2, note: "One ply, on a good day." },
+      { id: "cloud", name: "A cloud", score: 11, note: "Not sold in Mega rolls." },
     ],
   },
 

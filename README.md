@@ -6,16 +6,16 @@ A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern,
 | --- | --- |
 | `/` | Deal calculator: pick the packs on the shelf, type the prices, see which costs less, or which is the softest or the best balance |
 | `/convert` | Roll converter: what one roll equals in every other roll, with a chart of all rolls |
-| `/softness` | The softness scale: every line from 1 to 10 on one long strip of paper, least soft first, with sandpaper, a corn cob and a cloud as labeled jokes at the ends. Plain HTML and CSS, no JS |
+| `/softness` | The softness scale: every rated line from 1 to 10 on one long strip of paper, least soft first. A few reference points that aren't products sit on it too: sandpaper at 0, leaves and port-a-potty paper at 2, a cloud at 11 just past the end. They live only on this page. Plain HTML and CSS, no JS |
 | `/about` | How it works, for people: why sheets beat "rolls" in three cards, then a short FAQ (`<details>` accordion, works without JS) |
-| `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. The "Data" tab in the nav |
+| `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. It sits under How it works: no tab of its own, the About tab shows as current, and the breadcrumb is Home > About > Data & API |
 | `/charmin-mega-vs-quilted-northern-mega`, `/how-many-sheets-in-a-mega-roll`, `/cheapest-toilet-paper-per-sheet` | Short guides that answer one question each and link into the tools |
 | `/api/products`, `/api/compare` | Read-only JSON API, described in `/openapi.json` |
 | `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/llms-full.txt` | For crawlers and AI assistants |
 
 Both tools compare by sheet count by default. Paper area and area × ply are one click away.
 
-The nav has four tabs in a pill (Best deal, Roll converter, Softness, How it works) and Data as a quieter text link after them. Below 1024px the tabs shorten to Deal, Converter, Softness and About. On phones (up to 640px) and small tablets (641 to 760px) the tabs fill a row under the brand and Data moves to the right end of the brand row, so the phone header stays 103px tall. `test/browser.test.mjs` measures it at 320, 360, 375, 390, 768 and 1440px. Every page ends with the same one-line footer, "Not affiliated with any brand · Open source on GitHub", linking to https://github.com/ahatzz11/toiletpaper. It stays on one line down to 320px. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
+The nav has four tabs in a pill (Best deal, Roll converter, Softness, How it works). Below 1024px the tabs shorten to Deal, Converter, Softness and About. On phones (up to 640px) and small tablets (641 to 699px) the tabs fill a row under the brand, so the phone header stays within 103px. `/about` links to `/data` from the "where do the numbers come from" answer and from a "See the data & API" link at the end of the page. `test/browser.test.mjs` measures it at 320, 360, 375, 390, 768 and 1440px. Every page ends with the same one-line footer, "Not affiliated with any brand · Open source on GitHub", linking to https://github.com/ahatzz11/toiletpaper. It stays on one line down to 320px. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
 
 ## Data
 

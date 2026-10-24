@@ -3,14 +3,12 @@
 
 import { ORIGIN, SITE_NAME, SHARE } from "./config.mjs";
 
-// The four tabs, then Data as a quieter link (top right of the brand row on phones).
-// short labels show on narrow phones.
+// The four tabs. Short labels show below 1024px. /data lives under How it works.
 const NAV = [
   { key: "deal", path: "/", label: "Best deal", short: "Deal" },
   { key: "convert", path: "/convert", label: "Roll converter", short: "Converter" },
   { key: "softness", path: "/softness", label: "Softness" },
   { key: "about", path: "/about", label: "How it works", short: "About" },
-  { key: "data", path: "/data", label: "Data", secondary: true },
 ];
 export const REPO = "https://github.com/ahatzz11/toiletpaper";
 
@@ -115,9 +113,10 @@ export function renderPage(page, ctx) {
     `<link rel="manifest" href="/site.webmanifest">`,
   ].filter(Boolean).map((l) => "  " + l).join("\n");
 
-  const link = (n, cls) => `<a href="${n.path}"${n.key === page.nav ? ' aria-current="page"' : ""}${cls ? ` class="${cls}"` : ""}>${n.short ? `<span class="nav-long">${n.label}</span><span class="nav-short">${n.short}</span>` : n.label}</a>`;
-  const nav = `        <div class="nav-tabs">\n${NAV.filter((n) => !n.secondary).map((n) => "          " + link(n)).join("\n")}\n        </div>\n` +
-    NAV.filter((n) => n.secondary).map((n) => "        " + link(n, "nav-extra")).join("\n");
+  // aria-current="page" on the page's own tab; "true" on the section tab of a page under it (/data).
+  const current = (n) => n.key !== page.nav ? "" : n.path === page.path ? ' aria-current="page"' : ' aria-current="true"';
+  const link = (n) => `<a href="${n.path}"${current(n)}>${n.short ? `<span class="nav-long">${n.label}</span><span class="nav-short">${n.short}</span>` : n.label}</a>`;
+  const nav = `        <div class="nav-tabs">\n${NAV.map((n) => "          " + link(n)).join("\n")}\n        </div>`;
 
   return `<!doctype html>
 <html lang="en">

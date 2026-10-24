@@ -87,7 +87,7 @@ export function buildSite(D, Core) {
   const unratedLines = softLines.filter((l) => l.score == null);
   const softest = ratedLines.filter((l) => l.score === ratedLines.at(-1)?.score);
   // A word for each part of the scale, so the numbers read as something.
-  const softBand = (n) => n >= 9 ? "Plush" : n >= 7 ? "Soft" : n >= 5 ? "Fine" : n >= 3 ? "Thin" : "Scratchy";
+  const softBand = (n) => n > S.max ? "Off the scale" : n >= 9 ? "Plush" : n >= 7 ? "Soft" : n >= 5 ? "Fine" : n >= 3 ? "Thin" : "Scratchy";
   // "Super Mega (378 sheets)" when a line has two packs of the same size.
   const sizeLabel = (p) => {
     const twin = buyable.some((o) => o !== p && o.soft === p.soft && o.size === p.size);
@@ -102,18 +102,20 @@ export function buildSite(D, Core) {
   const softItem = (l) => `<li class="soft-item ${l.products[0].brand}"><a class="soft-item-name" href="/softness#why-${l.key}">${esc(l.name)}</a>` +
     `<span class="soft-sizes">${sizeLinks(l)}</span></li>`;
 
+  // Rows 1 to 10, plus a row for any anchor off either end (sandpaper at 0, a cloud at 11).
   function softScaleHTML() {
-    const rough = S.jokes.filter((j) => j.end === "rough");
-    const soft = S.jokes.filter((j) => j.end === "soft");
-    const joke = (j) => `<li class="soft-sheet soft-joke soft-${j.id}"><p class="soft-level"><span class="soft-joke-tag">Joke</span></p>` +
-      `<div class="soft-joke-body"><p class="soft-joke-name">${j.icon ? `<span aria-hidden="true">${j.icon} </span>` : ""}${esc(j.name)}</p><p class="soft-joke-note">${esc(j.note)}</p></div></li>`;
-    const levels = [];
-    for (let n = 1; n <= S.max; n++) {
-      const here = ratedLines.filter((l) => l.score === n);
-      levels.push(`<li class="soft-sheet${here.length ? "" : " is-empty"}" id="soft-${n}"><p class="soft-level"><span class="soft-num">${n}</span><span class="soft-of"> out of ${S.max}</span> <span class="soft-band">${softBand(n)}</span></p>` +
-        (here.length ? `<ul class="soft-items">${here.map(softItem).join("")}</ul>` : "") + "</li>");
+    const scores = S.anchors.map((a) => a.score);
+    const low = Math.min(1, ...scores);
+    const high = Math.max(S.max, ...scores);
+    const anchorItem = (a) => `<li class="soft-item soft-anchor soft-${a.id}"><span class="soft-item-name">${esc(a.name)}</span><span class="soft-caption">${esc(a.note)}</span></li>`;
+    const rows = [];
+    for (let n = low; n <= high; n++) {
+      const items = [...ratedLines.filter((l) => l.score === n).map(softItem), ...S.anchors.filter((a) => a.score === n).map(anchorItem)];
+      const cls = ["soft-sheet", `lv-${n}`, items.length ? "" : "is-empty", n === S.max ? "soft-end" : "", n > S.max ? "soft-beyond" : ""].filter(Boolean).join(" ");
+      rows.push(`<li class="${cls}" id="soft-${n}"><p class="soft-level"><span class="soft-num">${n}</span><span class="soft-of"> out of ${S.max}</span> <span class="soft-band">${softBand(n)}</span></p>` +
+        (items.length ? `<ul class="soft-items">${items.join("")}</ul>` : "") + "</li>");
     }
-    return `<div class="soft-scale"><ol class="soft-strip" aria-label="Softness scale, least soft first">${[...rough.map(joke), ...levels, ...soft.map(joke)].join("")}</ol></div>`;
+    return `<div class="soft-scale"><ol class="soft-strip" aria-label="Softness scale, least soft first">${rows.join("")}</ol></div>`;
   }
 
   function softTableHTML() {
@@ -194,13 +196,13 @@ export function buildSite(D, Core) {
     {
       id: "sources",
       q: "Where do the numbers come from?",
-      html: `From the makers first: the sheet counts, sheet sizes and "= N regular" claims on ${listJoin(brands.map((b) => esc(b.name)))}'s own sites and pack photos. When a maker doesn't print a number, we use a retailer listing for the same pack and say so. Last checked ${esc(D.checked)}. Packs change, so trust the one in your hand, and if it doesn't match, type its numbers into <strong>Custom</strong>. Every number has a link on <a href="/data#sources">Data &amp; API</a>.`,
+      html: `From the makers first: the sheet counts, sheet sizes and "= N regular" claims on ${listJoin(brands.map((b) => esc(b.name)))}'s own sites and pack photos. When a maker doesn't print a number, we use a retailer listing for the same pack and say so. Last checked ${esc(D.checked)}. Packs change, so trust the one in your hand, and if it doesn't match, type its numbers into <strong>Custom</strong>. Every number has a link to its source on the data page.<span class="faq-cta"><a class="btn btn-small" href="/data#sources">See the sources</a></span>`,
     },
     {
       id: "softest",
       q: "Which toilet paper is the softest?",
       html: softest.length
-        ? `Of the rolls we track, ${listJoin(softest.map((l) => esc(l.name)))} ${softest.length > 1 ? "score" : "scores"} highest, ${softest[0].score} out of ${S.max}. Softness has no industry standard, so the scores come from published tests and each brand's own tiers. <a href="/softness">The softness scale</a> shows every roll, with sources. Sandpaper is on there too, for scale.`
+        ? `Of the rolls we track, ${listJoin(softest.map((l) => esc(l.name)))} ${softest.length > 1 ? "score" : "scores"} highest, ${softest[0].score} out of ${S.max}. Softness has no industry standard, so the scores come from published tests and each brand's own tiers. <a href="/softness">The softness scale</a> shows every rated roll, with sources.`
         : `We haven't rated any rolls yet. <a href="/softness">The softness scale</a> explains how we rate them.`,
     },
     {
@@ -312,15 +314,16 @@ export function buildSite(D, Core) {
     <section class="about-section faq" aria-labelledby="faq-title">
       <h2 id="faq-title">Questions</h2>
       ${faqHTML}
-    </section>`,
+    </section>
+    <p class="about-more"><a class="quiet-link" href="/data">See the data &amp; API</a></p>`,
   });
 
   const apiQuery = new URLSearchParams(apiExample.split("?")[1]);
   const apiOutput = JSON.stringify(Core.compareJSON(Core.parseDeal(apiQuery, true).state), null, 2);
   const shareExample = ORIGIN + Core.dealLink({ ...exampleState, example: false }).slice(ORIGIN.length);
   pages.push({
-    key: "data", path: "/data", nav: "data", mainClass: "page-data", showCrumbs: true,
-    crumbs: [{ name: "Data & API", path: "/data" }],
+    key: "data", path: "/data", nav: "about", mainClass: "page-data", showCrumbs: true,
+    crumbs: [{ name: "About", path: "/about" }, { name: "Data & API", path: "/data" }],
     title: "Data & API: every roll, its sources and a JSON API | Toilet Paper Math",
     ogTitle: "Toilet Paper Math: data & API",
     description: `Sheets, sheet sizes and sources for every ${brandList} roll, plus a free JSON API and files for AI assistants.`,
@@ -345,7 +348,7 @@ export function buildSite(D, Core) {
 
     <section class="about-section" id="softness" aria-labelledby="softness-title">
       <h2 id="softness-title">Softness scores</h2>
-      <p>Softness has no industry standard or printed number, so each line gets a coarse score from 1 to ${S.max}. Checked ${esc(S.checked)}. <a href="/softness">See them on the scale</a>.</p>
+      <p>Softness has no industry standard or printed number, so each line gets a coarse score from 1 to ${S.max}. Checked ${esc(S.checked)}. <a href="/softness">See them on the scale</a>. A few reference points that aren't for sale here are on the scale too.</p>
       ${softMethodHTML}
       ${softTableHTML()}
       <h3>Every softness source</h3>
@@ -397,7 +400,7 @@ export function buildSite(D, Core) {
       <h1>The softness scale</h1>
       <p class="lede">Every roll we could rate, from rough to fluffy. It gets softer as you scroll.</p>
     </div>
-    <p class="soft-legend">Scores run from 1 to ${S.max}, built from published tests and each brand's own tiers. A few things that aren't toilet paper are on here for scale, and they're labeled.</p>
+    <p class="soft-legend">Scores run from 1 to ${S.max}, built from published tests and each brand's own tiers. A few reference points that aren't for sale here are on the scale too.</p>
     ${softScaleHTML()}
     ${unratedLines.length ? `<section class="about-section" aria-labelledby="unrated-title"><h2 id="unrated-title">Not rated</h2><p>We couldn't find a good source for these, so they stay off the scale instead of getting a guess:</p><ul class="soft-items soft-unrated">${unratedLines.map((l) => `<li class="soft-item ${l.products[0].brand}"><span class="soft-item-name">${esc(l.name)}</span><span class="soft-sizes">${sizeLinks(l)}</span></li>`).join("")}</ul></section>` : ""}
     <p class="soft-cta"><a class="btn btn-primary" href="/?p=balanced">Compare packs with softness</a> <span class="hint">The calculator can pick the cheapest, the softest or a balance of both.</span></p>

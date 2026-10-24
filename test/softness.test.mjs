@@ -3,6 +3,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import worker from "../dist-inline/index.js";
 import { loadCore } from "../src/site/load.mjs";
@@ -77,20 +78,31 @@ test("/api/products carries each product's softness, or null when not rated", as
 });
 
 // ---------- the scale ----------
-test("/softness lists the scale least soft first, with every rated line once and the jokes at the ends", async () => {
+test("/softness runs from 0 to 11, least soft first, with every rated line once and the reference points on their scores", async () => {
   const res = await get("/softness");
   assert.equal(res.status, 200);
   const page = await res.text();
   assert.equal(pick(page, /<link rel="canonical" href="([^"]*)">/), ORIGIN + "/softness");
   const strip_ = pick(page, /<ol class="soft-strip"[^>]*>([\s\S]*?)<\/ol><\/div>/);
   const sheets = [...strip_.matchAll(/<li class="soft-sheet([^"]*)"[^>]*>([\s\S]*?)<\/li>(?=<li class="soft-sheet|$)/g)];
-  const labels = sheets.map((m) => m[1].includes("soft-joke") ? "joke:" + strip(pick(m[2], /<p class="soft-joke-name">([\s\S]*?)<\/p>/)) : Number(pick(m[2], /<span class="soft-num">(\d+)<\/span>/)));
-  const rough = S.jokes.filter((j) => j.end === "rough").map((j) => "joke:" + (j.icon ? j.icon + " " : "") + j.name);
-  const fluffy = S.jokes.filter((j) => j.end === "soft").map((j) => "joke:" + (j.icon ? j.icon + " " : "") + j.name);
-  assert.deepEqual(labels, [...rough, ...Array.from({ length: S.max }, (_, i) => i + 1), ...fluffy]);
-  assert.ok(rough[0].endsWith("Sandpaper"), "sandpaper is the least soft");
-  // Every joke is labeled as one.
-  for (const m of sheets.filter((m) => m[1].includes("soft-joke"))) assert.match(m[2], /<span class="soft-joke-tag">Joke<\/span>/);
+  const nums = sheets.map((m) => Number(pick(m[2], /<span class="soft-num">(\d+)<\/span>/)));
+  assert.deepEqual(nums, Array.from({ length: 12 }, (_, i) => i), "a 0 row before 1, and an 11 row after 10");
+  // 10 closes the roll; 11 sits on its own just past the end.
+  assert.deepEqual(sheets.map((m) => /\bsoft-end\b/.test(m[1])), nums.map((n) => n === S.max));
+  assert.deepEqual(sheets.map((m) => /\bsoft-beyond\b/.test(m[1])), nums.map((n) => n > S.max));
+  assert.equal(strip(pick(sheets[11][2], /<p class="soft-level">([\s\S]*?)<\/p>/)), "11 out of 10 Off the scale");
+  // The reference points, with ties in data order: leaves, then port-a-potty paper.
+  assert.deepEqual(S.anchors.map((a) => [a.id, a.score]), [["sandpaper", 0], ["leaves", 2], ["porta-potty", 2], ["cloud", 11]]);
+  for (const a of S.anchors) {
+    const at = sheets.filter((m) => m[2].includes(`class="soft-item soft-anchor soft-${a.id}"`));
+    assert.equal(at.length, 1, a.id);
+    assert.equal(nums[sheets.indexOf(at[0])], a.score, a.id);
+    const chip = pick(at[0][2], new RegExp(`<li class="soft-item soft-anchor soft-${a.id}">([\\s\\S]*?)</li>`));
+    assert.equal(strip(pick(chip, /<span class="soft-item-name">([\s\S]*?)<\/span>/)), a.name);
+    assert.equal(strip(pick(chip, /<span class="soft-caption">([\s\S]*?)<\/span>/)), a.note);
+    assert.doesNotMatch(chip, /<a /, `${a.id} isn't a link to a product`);
+  }
+  assert.deepEqual([...sheets[2][2].matchAll(/<span class="soft-item-name">([^<]*)<\/span>/g)].map((m) => m[1]), ["Leaves", "Average port-a-potty toilet paper"]);
   // Each rated line sits on its own score, once.
   for (const [key, l] of rated) {
     const at = sheets.filter((m) => m[2].includes(`href="/softness#why-${key}"`));
@@ -111,6 +123,33 @@ test("/softness lists the scale least soft first, with every rated line once and
     rated.slice().sort((a, b) => a[1].score - b[1].score).map(([, l]) => l.name));
   // Works without JavaScript: nothing on the scale is built by app.js.
   assert.doesNotMatch(await (await get("/app.js")).text(), /soft-strip|soft-sheet/);
+});
+
+test("reference points live only on the scale, and nothing calls them jokes", async () => {
+  const names = S.anchors.map((a) => a.name);
+  // Not a softness line, so nothing can be sold as one and Balanced never sees them.
+  for (const a of S.anchors) assert.ok(!(a.id in S.lines), a.id);
+  assert.ok(D.products.every((p) => !S.anchors.some((a) => a.id === p.soft)));
+  const products = await (await get("/api/products")).text();
+  const example = pick(await html("/data"), /<a href="(\/api\/compare\?[^"]+)">/).replace(/&amp;/g, "&");
+  const compare = await (await get(example + "&p=balanced")).text();
+  assert.match(compare, /"winner"/);
+  for (const [where, text] of [["/api/products", products], ["/api/compare", compare]]) {
+    for (const n of names) assert.ok(!text.includes(n), `${where} has no ${n}`);
+  }
+  for (const path of ["/", "/convert", "/data"]) {
+    const main = pick(await html(path), /<main[^>]*>([\s\S]*?)<\/main>/);
+    assert.ok(!main.includes("soft-anchor"), path);
+    for (const n of names) assert.ok(!main.includes(n), `${path} has no ${n}`);
+  }
+  // No "joke" anywhere a person or an agent reads.
+  const sitemap = await (await get("/sitemap.xml")).text();
+  const paths = [...sitemap.matchAll(/<loc>https:\/\/toiletpaper\.app([^<]*)<\/loc>/g)].map((m) => m[1] || "/");
+  assert.ok(paths.includes("/softness") && paths.includes("/data"));
+  for (const path of [...paths, "/llms.txt", "/llms-full.txt", "/openapi.json"]) {
+    assert.doesNotMatch(await (await get(path)).text(), /\bjokes?\b/i, path);
+  }
+  assert.doesNotMatch(readFileSync(ROOT + "README.md", "utf8"), /\bjokes?\b/i, "README");
 });
 
 test("/data and llms-full.txt document every softness source with its date", async () => {

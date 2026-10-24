@@ -138,7 +138,7 @@ ${softness}
 
 ${softTable}
 
-Regular rolls are each brand's measuring unit, not a pack you buy, so they aren't rated. Custom rolls are never rated. The /softness page also shows ${S.jokes.map((j) => j.name.toLowerCase()).join(", ").replace(/, ([^,]*)$/, " and $1")} at the ends of the scale. They're jokes, not tested and not scored.
+Regular rolls are each brand's measuring unit, not a pack you buy, so they aren't rated. Custom rolls are never rated. A few reference points that aren't products are on the /softness scale for comparison (${S.anchors.map((a) => `${a.name.toLowerCase()} at ${a.score}`).join(", ").replace(/, ([^,]*)$/, " and $1")}). They aren't in the calculator or the API.
 
 ## Questions
 

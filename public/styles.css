@@ -87,6 +87,12 @@ a { color: var(--charmin); }
 }
 .btn-link:hover { color: var(--ink); }
 .btn-link[disabled] { cursor: default; text-decoration: none; }
+.btn-small { padding: 0.3em 0.85em; font-size: 0.85rem; border-width: 1.5px; }
+.btn-small:hover { background: var(--surface-2); }
+.faq-cta { display: block; margin-top: 10px; }
+.about-more { margin: 18px 0 0; font-size: 0.92rem; }
+.quiet-link { color: var(--muted); text-underline-offset: 3px; }
+.quiet-link:hover { color: var(--ink); }
 
 /* ---------- Background: rolls unspooling as they drift by ----------
    Built by app.js from TPCore.skyRollHTML. Three depths for parallax: farther rolls are
@@ -155,14 +161,7 @@ a { color: var(--charmin); }
   padding: 0.4em 0.95em; border-radius: 999px; white-space: nowrap; transition: background-color 0.15s, color 0.15s;
 }
 .nav-tabs a:hover { background: var(--surface); }
-.nav-tabs a[aria-current="page"] { background: var(--ink); color: #fff; }
-.nav-extra {
-  color: var(--muted); font-size: 0.85rem; font-weight: 600; white-space: nowrap;
-  text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; text-decoration-thickness: 2px;
-  padding: 0.4em 0.1em;
-}
-.nav-extra:hover { color: var(--ink); text-decoration-color: currentColor; }
-.nav-extra[aria-current="page"] { color: var(--ink); text-decoration-color: var(--sun); text-decoration-thickness: 3px; }
+.nav-tabs a[aria-current] { background: var(--ink); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .nav-tabs a { transition: none; } }
 .nav-short { display: none; }
 
@@ -175,20 +174,32 @@ a { color: var(--charmin); }
   background: linear-gradient(#FFFFFF, #F1E6D4); border: 1px solid var(--line-strong); border-radius: 13px;
   box-shadow: 0 3px 8px rgba(46, 33, 64, 0.08);
 }
-.soft-strip {
-  list-style: none; margin: 0; padding: 0; position: relative; overflow: hidden;
-  background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 18px 18px;
-  box-shadow: 0 12px 30px rgba(46, 33, 64, 0.08);
-}
-/* The gauge down the left edge, from grit to sky. */
-.soft-strip::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
-  background: linear-gradient(#9C7646, #E7C27A 16%, #FFFDF8 45%, #FFB3C7 80%, #A9D8FF);
-}
+.soft-strip { list-style: none; margin: 0; padding: 0; }
+/* Each row is a sheet. The gauge down the left edge runs from grit to sky. */
 .soft-sheet {
   display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 8px 14px; align-items: center;
-  padding: 14px 18px 14px 24px; border-top: 2px dashed var(--line); min-height: 68px;
+  padding: 14px 18px 14px 24px; border: 1px solid var(--line-strong); border-block-width: 0; min-height: 68px;
+  background: linear-gradient(var(--g, var(--line)), var(--g2, var(--line))) left / 6px 100% no-repeat, var(--surface);
 }
+.soft-sheet + .soft-sheet { border-top: 2px dashed var(--line); }
+.soft-end { border-bottom-width: 1px; border-radius: 0 0 18px 18px; box-shadow: 0 12px 30px rgba(46, 33, 64, 0.08); }
+/* Past the end of the roll: torn off and floating just below it. */
+.soft-sheet.soft-beyond {
+  margin-top: 16px; border: 2px dashed var(--line-strong); border-radius: 18px;
+  background: linear-gradient(var(--g), var(--g)) left / 6px 100% no-repeat, linear-gradient(var(--surface), #F3F9FF);
+}
+.lv-0 { --g: #86602F; --g2: #9C7646; }
+.lv-1 { --g: #9C7646; --g2: #BE955C; }
+.lv-2 { --g: #BE955C; --g2: #DDB574; }
+.lv-3 { --g: #DDB574; --g2: #EBCB8C; }
+.lv-4 { --g: #EBCB8C; --g2: #F5E2B8; }
+.lv-5 { --g: #F5E2B8; --g2: #FCF3E2; }
+.lv-6 { --g: #FCF3E2; --g2: #FFE3EA; }
+.lv-7 { --g: #FFE3EA; --g2: #FFCAD8; }
+.lv-8 { --g: #FFCAD8; --g2: #F5BAD3; }
+.lv-9 { --g: #F5BAD3; --g2: #C9CDF5; }
+.lv-10 { --g: #C9CDF5; --g2: #A9D8FF; }
+.lv-11 { --g: #A9D8FF; --g2: #A9D8FF; }
 .soft-sheet:first-child { border-top: 0; }
 .soft-sheet.is-empty { min-height: 0; padding-block: 7px; }
 .soft-level { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 4px; }
@@ -208,22 +219,16 @@ a { color: var(--charmin); }
 a.soft-item-name:hover { text-decoration: underline; }
 .soft-sizes { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 0.82rem; }
 .soft-sizes a { color: var(--muted); }
-.soft-joke { min-height: 76px; }
-.soft-joke-tag {
-  display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 0.15em 0.6em; border: 1.5px dashed currentColor; border-radius: 999px;
-}
-.soft-joke-name { margin: 0; font-family: var(--font-fun); font-size: 1.15rem; }
-.soft-joke-note { margin: 0; font-size: 0.88rem; }
-/* Grit. */
+/* Reference points that aren't products: same chip, quieter tints. */
+.soft-anchor { border-left-color: var(--line-strong); background: var(--surface-2); max-width: 100%; }
+.soft-caption { font-size: 0.82rem; color: var(--muted); }
 .soft-sandpaper {
-  background:
-    radial-gradient(rgba(70, 45, 15, 0.35) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    radial-gradient(rgba(255, 245, 225, 0.4) 1px, transparent 1.6px) 2.5px 2.5px / 5px 5px,
-    #D2AE7E;
+  border-left-color: #C7A274;
+  background: radial-gradient(rgba(120, 85, 40, 0.13) 1px, transparent 1.6px) 0 0 / 5px 5px, #FBF5EC;
 }
-.soft-corn-cob { background: #FFF1BF; }
-.soft-cloud { background: radial-gradient(120% 90% at 50% 120%, #FFFFFF 40%, #E3F1FF 100%); }
+.soft-leaves { border-left-color: #9CC48A; background: #F2F8EE; }
+.soft-porta-potty { border-left-color: #A9B4BC; background: #F2F4F5; }
+.soft-cloud { border-left-color: #A9D8FF; background: radial-gradient(120% 100% at 50% 120%, #FFFFFF 35%, #EDF6FF 100%); }
 .soft-unrated { margin-bottom: 8px; }
 .soft-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 720px; margin: 0 0 8px; }
 .soft-table td:nth-child(3) { min-width: 16em; }
@@ -508,15 +513,13 @@ code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--
 
 @media (max-width: 640px) {
   .wrap { width: calc(100% - 24px); }
-  .header-inner { padding: 6px 0 8px; gap: 6px 10px; position: relative; }
+  .header-inner { padding: 6px 0 8px; gap: 6px 10px; }
   .mascot { width: 40px; height: 44px; }
   .brand-name { font-size: 1.1rem; }
   .brand-tag { display: none; }
   .site-nav { width: 100%; }
   .nav-tabs { flex: 1; justify-content: space-between; padding: 3px; }
   .nav-tabs a { flex: 1 1 auto; text-align: center; padding: 0.35em 0.4em; font-size: 0.85rem; }
-  /* Data moves up to the right end of the brand row, so the tab bar keeps its four tabs. */
-  .nav-extra { position: absolute; right: 0; top: 6px; height: 44px; display: flex; align-items: center; padding: 0 2px; }
   main.page { padding: 12px 0 20px; }
   .page-head { margin-bottom: 10px; }
   h1 { font-size: 1.35rem; }
@@ -568,12 +571,10 @@ code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--
   .nav-short { display: inline; }
 }
 /* Small tablets: the brand and the tabs don't fit side by side, so stack them like on phones. */
-@media (min-width: 641px) and (max-width: 760px) {
-  .header-inner { position: relative; }
+@media (min-width: 641px) and (max-width: 699px) {
   .site-nav { width: 100%; }
   .nav-tabs { flex: 1; justify-content: space-between; }
   .nav-tabs a { flex: 1 1 auto; text-align: center; }
-  .nav-extra { position: absolute; right: 0; top: 10px; height: 63px; display: flex; align-items: center; }
 }
 /* The footer stays one line down to 320px. */
 @media (max-width: 374px) {

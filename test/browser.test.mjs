@@ -130,7 +130,7 @@ test("restored form values can't override a calculator or converter link", async
   await page.close();
 });
 
-test("the header fits phones on one tab row, no taller than 103px, with Data beside the brand", async (t) => {
+test("the header fits phones on one tab row of four, no taller than 103px, with About current on /data", async (t) => {
   if (skip) return t.skip("Chrome isn't installed");
   for (const width of [320, 360, 375, 390, 768, 1440]) {
     const page = await context.newPage();
@@ -138,26 +138,54 @@ test("the header fits phones on one tab row, no taller than 103px, with Data bes
     await page.goto(base + "/data");
     const m = await page.evaluate(() => {
       const box = (el) => el.getBoundingClientRect();
-      const tabs = [...document.querySelectorAll(".nav-tabs a")];
-      const data = box(document.querySelector(".nav-extra")), brand = box(document.querySelector(".brand"));
+      const tabs = [...document.querySelectorAll(".site-nav a")];
       const footer = document.querySelector(".footer-line");
       return {
         header: box(document.querySelector(".site-header")).height,
+        tabs: tabs.map((a) => a.getAttribute("href")),
         rows: new Set(tabs.map((a) => Math.round(box(a).top))).size,
         clipped: tabs.some((a) => a.scrollWidth > a.clientWidth) || document.documentElement.scrollWidth > innerWidth,
-        dataVisible: data.width > 0 && data.right <= innerWidth,
-        overlap: !(data.left >= brand.right || data.right <= brand.left || data.top >= brand.bottom || data.bottom <= brand.top),
-        current: document.querySelector('.site-nav [aria-current="page"]').textContent,
+        current: [...document.querySelectorAll(".site-nav [aria-current]")].map((a) => a.innerText),
+        currentDark: getComputedStyle(document.querySelector(".site-nav [aria-current]")).color === "rgb(255, 255, 255)",
         footerLines: Math.round(box(footer).height / parseFloat(getComputedStyle(footer).lineHeight)),
       };
     });
     if (width <= 390) assert.ok(m.header <= 103, `${width}px: header ${m.header}px`);
     else assert.ok(m.header <= 90, `${width}px: header ${m.header}px`);
+    assert.deepEqual(m.tabs, ["/", "/convert", "/softness", "/about"], `${width}px: four tabs, no Data`);
     assert.equal(m.rows, 1, `${width}px: one row of tabs`);
     assert.equal(m.clipped, false, `${width}px: nothing clipped`);
-    assert.ok(m.dataVisible && !m.overlap, `${width}px: Data is visible and clear of the brand`);
-    assert.equal(m.current, "Data", width);
+    assert.deepEqual(m.current, [width >= 1024 ? "How it works" : "About"], `${width}px: About is current`);
+    assert.ok(m.currentDark, `${width}px: About is styled as the current tab`);
     assert.equal(m.footerLines, 1, `${width}px: footer on one line`);
+    await page.close();
+  }
+});
+
+test("the softness scale holds its 0 and 11 rows and its tied anchors on phones and desktops", async (t) => {
+  if (skip) return t.skip("Chrome isn't installed");
+  for (const width of [320, 390, 768, 1440]) {
+    const page = await context.newPage();
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(base + "/softness");
+    const m = await page.evaluate(() => {
+      const box = (el) => el.getBoundingClientRect();
+      const row = (n) => box(document.getElementById("soft-" + n));
+      const chips = [...document.querySelectorAll("#soft-2 .soft-anchor")].map(box);
+      return {
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        order: row(0).bottom <= row(1).top + 2 && row(10).bottom <= row(11).top,
+        gap: row(11).top - row(10).bottom,
+        chips: chips.length,
+        chipsInside: chips.every((c) => c.left >= row(2).left && c.right <= row(2).right),
+        chipsApart: chips.length === 2 && (chips[0].right <= chips[1].left || chips[0].bottom <= chips[1].top),
+      };
+    });
+    assert.equal(m.overflow, false, `${width}px: no sideways scroll`);
+    assert.ok(m.order, `${width}px: 0 before 1, 11 after 10`);
+    assert.ok(m.gap >= 8, `${width}px: 11 sits apart, past the end (${m.gap}px)`);
+    assert.equal(m.chips, 2, width);
+    assert.ok(m.chipsInside && m.chipsApart, `${width}px: leaves and port-a-potty paper fit side by side or stacked`);
     await page.close();
   }
 });

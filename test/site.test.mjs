@@ -202,7 +202,7 @@ test("/about is the plain-language page and /data holds the technical material",
     assert.ok(data.includes(bit), `/data has ${bit}`);
   }
   const ld = graphOf(await html("/data"));
-  assert.deepEqual(ld.find((n) => n["@type"] === "BreadcrumbList").itemListElement.map((i) => i.name), ["Home", "Data & API"]);
+  assert.deepEqual(ld.find((n) => n["@type"] === "BreadcrumbList").itemListElement.map((i) => i.name), ["Home", "About", "Data & API"]);
 });
 
 test("the API example on /data is the API's real output", async () => {

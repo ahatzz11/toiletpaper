@@ -51,10 +51,12 @@ for (const page of PAGES) {
     assert.ok(pick(html, /<meta name="description" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:title" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:description" content="([^"]+)">/));
-    // Every page links to every tab in the nav, in order, and marks itself as current.
+    // Every page links to the four tabs, in order, and marks its own tab as current. /data lives under About.
+    const TABS = ["/", "/convert", "/softness", "/about"];
     const nav = pick(html, /<nav class="site-nav"[^>]*>([\s\S]*?)<\/nav>/);
-    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), PAGES.map((p) => p.path), page.path);
-    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)" aria-current="page"[ >]/g)].map((m) => m[1]), [page.path]);
+    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), TABS, page.path);
+    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)" aria-current="(page|true)"[ >]/g)].map((m) => m[1] + " " + m[2]),
+      [TABS.includes(page.path) ? page.path + " page" : "/about true"], page.path);
   });
 }
 
