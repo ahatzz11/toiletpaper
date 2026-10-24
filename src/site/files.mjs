@@ -66,7 +66,7 @@ Read-only JSON, free to use with a link back. CORS is open.
 
 ${pageLine(softPage)}
 
-Softness has no industry standard, so each line gets a coarse score from 1 to ${S.max}. A line with no good source is "not rated" instead of guessed. Checked ${S.checked}.
+Softness has no industry standard, so each line gets a coarse score from 0 to ${S.max}. A line with no good source is "not rated" instead of guessed. Checked ${S.checked}.
 
 ${S.method.map((m) => `- ${m}`).join("\n")}
 
@@ -177,9 +177,9 @@ ${deepLinks}
       sources: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: ["string", "null"] } } } },
       softness: {
         type: ["object", "null"],
-        description: `Softness score for the product's line, 1 to ${S.max}. Null when not rated (no good source, a regular roll, or a custom roll). Method: ${ORIGIN}/softness`,
+        description: `Softness score for the product's line, 0 to ${S.max}. Null when not rated (no good source, a regular roll, or a custom roll). Method: ${ORIGIN}/softness`,
         properties: {
-          score: { type: "integer", minimum: 1, maximum: S.max },
+          score: { type: "integer", minimum: 0, maximum: S.max },
           outOf: { type: "integer", const: S.max },
           line: { type: "string" },
           basis: { type: "string", description: "Why the line has this score." },
@@ -264,7 +264,7 @@ ${deepLinks}
               sheetsPerRoll: { type: "number" }, sheetWidthIn: { type: "number" }, sheetLengthIn: { type: "number" }, ply: { type: "number" },
               rolls: { type: "integer" }, price: { type: "number" }, totalSheets: { type: "number" }, totalSqFt: { type: "number" },
               pricePer100Sheets: { type: "number" }, pricePerSqFt: { type: "number" }, pricePerSqFtPly: { type: "number" },
-              softness: { type: ["integer", "null"], description: `Softness score, 1 to ${S.max}, or null when not rated.` },
+              softness: { type: ["integer", "null"], description: `Softness score, 0 to ${S.max}, or null when not rated.` },
               best: { type: "boolean", description: "This pack wins for the priority p." },
               cheapest: { type: "boolean", description: "This pack is the cheapest per unit (within 0.5%)." },
               percentMoreThanBest: { type: "number", description: "Percent more per unit than the cheapest pack." },

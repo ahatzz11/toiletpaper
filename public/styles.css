@@ -226,7 +226,6 @@ a.soft-item-name:hover { text-decoration: underline; }
   border-left-color: #C7A274;
   background: radial-gradient(rgba(120, 85, 40, 0.13) 1px, transparent 1.6px) 0 0 / 5px 5px, #FBF5EC;
 }
-.soft-leaves { border-left-color: #9CC48A; background: #F2F8EE; }
 .soft-porta-potty { border-left-color: #A9B4BC; background: #F2F4F5; }
 .soft-cloud { border-left-color: #A9D8FF; background: radial-gradient(120% 100% at 50% 120%, #FFFFFF 35%, #EDF6FF 100%); }
 .soft-unrated { margin-bottom: 8px; }

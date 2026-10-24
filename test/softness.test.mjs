@@ -91,8 +91,10 @@ test("/softness runs from 0 to 11, least soft first, with every rated line once 
   assert.deepEqual(sheets.map((m) => /\bsoft-end\b/.test(m[1])), nums.map((n) => n === S.max));
   assert.deepEqual(sheets.map((m) => /\bsoft-beyond\b/.test(m[1])), nums.map((n) => n > S.max));
   assert.equal(strip(pick(sheets[11][2], /<p class="soft-level">([\s\S]*?)<\/p>/)), "11 out of 10 Off the scale");
-  // The reference points, with ties in data order: leaves, then port-a-potty paper.
-  assert.deepEqual(S.anchors.map((a) => [a.id, a.score]), [["sandpaper", 0], ["leaves", 2], ["porta-potty", 2], ["cloud", 11]]);
+  // The reference points. Kirkland stays out of it: both lines are still not rated.
+  assert.deepEqual(S.anchors.map((a) => [a.id, a.score]), [["sandpaper", 0], ["porta-potty", 2], ["cloud", 11]]);
+  assert.equal(S.lines["kirkland-bath-tissue"].score, null);
+  assert.equal(S.lines["kirkland-ultra-soft"].score, null);
   for (const a of S.anchors) {
     const at = sheets.filter((m) => m[2].includes(`class="soft-item soft-anchor soft-${a.id}"`));
     assert.equal(at.length, 1, a.id);
@@ -102,7 +104,9 @@ test("/softness runs from 0 to 11, least soft first, with every rated line once 
     assert.equal(strip(pick(chip, /<span class="soft-caption">([\s\S]*?)<\/span>/)), a.note);
     assert.doesNotMatch(chip, /<a /, `${a.id} isn't a link to a product`);
   }
-  assert.deepEqual([...sheets[2][2].matchAll(/<span class="soft-item-name">([^<]*)<\/span>/g)].map((m) => m[1]), ["Leaves", "Average port-a-potty toilet paper"]);
+  assert.deepEqual([...sheets[2][2].matchAll(/<span class="soft-item-name">([^<]*)<\/span>/g)].map((m) => m[1]), ["Average port-a-potty toilet paper"]);
+  assert.ok(!/\bLeaves\b|soft-leaves|poison ivy/.test(page), "no leaves anywhere on the page");
+  assert.match(page, /Scores run from 0 to 10,/);
   // Each rated line sits on its own score, once.
   for (const [key, l] of rated) {
     const at = sheets.filter((m) => m[2].includes(`href="/softness#why-${key}"`));

@@ -474,7 +474,6 @@ var TP_DATA = {
     // on that page: not in the calculator, the converter, the API or the roll tables.
     anchors: [
       { id: "sandpaper", name: "Sandpaper", score: 0, note: "80 grit. Great for decks." },
-      { id: "leaves", name: "Leaves", score: 2, note: "Free. Seasonal. Check for poison ivy." },
       { id: "porta-potty", name: "Average port-a-potty toilet paper", score: 2, note: "One ply, on a good day." },
       { id: "cloud", name: "A cloud", score: 11, note: "Not sold in Mega rolls." },
     ],

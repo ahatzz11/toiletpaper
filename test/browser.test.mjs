@@ -162,7 +162,7 @@ test("the header fits phones on one tab row of four, no taller than 103px, with 
   }
 });
 
-test("the softness scale holds its 0 and 11 rows and its tied anchors on phones and desktops", async (t) => {
+test("the softness scale holds its 0 and 11 rows, with each anchor inside its row, on phones and desktops", async (t) => {
   if (skip) return t.skip("Chrome isn't installed");
   for (const width of [320, 390, 768, 1440]) {
     const page = await context.newPage();
@@ -171,21 +171,23 @@ test("the softness scale holds its 0 and 11 rows and its tied anchors on phones 
     const m = await page.evaluate(() => {
       const box = (el) => el.getBoundingClientRect();
       const row = (n) => box(document.getElementById("soft-" + n));
-      const chips = [...document.querySelectorAll("#soft-2 .soft-anchor")].map(box);
+      const inside = (c, r) => c.left >= r.left && c.right <= r.right && c.top >= r.top && c.bottom <= r.bottom;
       return {
         overflow: document.documentElement.scrollWidth > innerWidth,
         order: row(0).bottom <= row(1).top + 2 && row(10).bottom <= row(11).top,
         gap: row(11).top - row(10).bottom,
-        chips: chips.length,
-        chipsInside: chips.every((c) => c.left >= row(2).left && c.right <= row(2).right),
-        chipsApart: chips.length === 2 && (chips[0].right <= chips[1].left || chips[0].bottom <= chips[1].top),
+        anchorsInside: [...document.querySelectorAll(".soft-anchor")].every((c) => inside(box(c), box(c.closest(".soft-sheet")))),
+        // Port-a-potty paper is alone at 2, so its row is laid out like row 5 (Angel Soft alone): one chip, no extra space.
+        atTwo: document.querySelectorAll("#soft-2 .soft-item").length,
+        slack: [2, 5].map((n) => { const r = row(n), c = box(document.querySelector(`#soft-${n} .soft-item`)); return Math.round(r.height - c.height); }),
       };
     });
     assert.equal(m.overflow, false, `${width}px: no sideways scroll`);
     assert.ok(m.order, `${width}px: 0 before 1, 11 after 10`);
     assert.ok(m.gap >= 8, `${width}px: 11 sits apart, past the end (${m.gap}px)`);
-    assert.equal(m.chips, 2, width);
-    assert.ok(m.chipsInside && m.chipsApart, `${width}px: leaves and port-a-potty paper fit side by side or stacked`);
+    assert.ok(m.anchorsInside, `${width}px: every anchor fits inside its row`);
+    assert.equal(m.atTwo, 1, `${width}px: one item at 2`);
+    assert.ok(Math.abs(m.slack[0] - m.slack[1]) <= 2, `${width}px: row 2 has the same padding as row 5 (${m.slack})`);
     await page.close();
   }
 });

@@ -348,7 +348,7 @@ export function buildSite(D, Core) {
 
     <section class="about-section" id="softness" aria-labelledby="softness-title">
       <h2 id="softness-title">Softness scores</h2>
-      <p>Softness has no industry standard or printed number, so each line gets a coarse score from 1 to ${S.max}. Checked ${esc(S.checked)}. <a href="/softness">See them on the scale</a>. A few reference points that aren't for sale here are on the scale too.</p>
+      <p>Softness has no industry standard or printed number, so each line gets a coarse score from 0 to ${S.max}. Checked ${esc(S.checked)}. <a href="/softness">See them on the scale</a>. A few reference points that aren't for sale here are on the scale too.</p>
       ${softMethodHTML}
       ${softTableHTML()}
       <h3>Every softness source</h3>
@@ -394,13 +394,13 @@ export function buildSite(D, Core) {
     crumbs: [{ name: "Softness", path: "/softness" }],
     title: "Softness scale: which toilet paper is softest? | Toilet Paper Math",
     ogTitle: "The toilet paper softness scale",
-    description: `How soft ${brandAnd} toilet paper is, from 1 to ${S.max}, scored from published tests. Sandpaper included for scale.`,
+    description: `How soft ${brandAnd} toilet paper is, from 0 to ${S.max}, scored from published tests. Sandpaper included for scale.`,
     itemList: { name: "Toilet paper lines from least to most soft", items: ratedLines.map((l) => ({ name: `${l.name}: ${l.score} out of ${S.max}`, path: convLink(l.products[0]) })) },
     body: `<div class="page-head">
       <h1>The softness scale</h1>
       <p class="lede">Every roll we could rate, from rough to fluffy. It gets softer as you scroll.</p>
     </div>
-    <p class="soft-legend">Scores run from 1 to ${S.max}, built from published tests and each brand's own tiers. A few reference points that aren't for sale here are on the scale too.</p>
+    <p class="soft-legend">Scores run from 0 to ${S.max}, built from published tests and each brand's own tiers. A few reference points that aren't for sale here are on the scale too.</p>
     ${softScaleHTML()}
     ${unratedLines.length ? `<section class="about-section" aria-labelledby="unrated-title"><h2 id="unrated-title">Not rated</h2><p>We couldn't find a good source for these, so they stay off the scale instead of getting a guess:</p><ul class="soft-items soft-unrated">${unratedLines.map((l) => `<li class="soft-item ${l.products[0].brand}"><span class="soft-item-name">${esc(l.name)}</span><span class="soft-sizes">${sizeLinks(l)}</span></li>`).join("")}</ul></section>` : ""}
     <p class="soft-cta"><a class="btn btn-primary" href="/?p=balanced">Compare packs with softness</a> <span class="hint">The calculator can pick the cheapest, the softest or a balance of both.</span></p>

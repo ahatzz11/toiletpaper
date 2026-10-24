@@ -6,7 +6,7 @@ A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern,
 | --- | --- |
 | `/` | Deal calculator: pick the packs on the shelf, type the prices, see which costs less, or which is the softest or the best balance |
 | `/convert` | Roll converter: what one roll equals in every other roll, with a chart of all rolls |
-| `/softness` | The softness scale: every rated line from 1 to 10 on one long strip of paper, least soft first. A few reference points that aren't products sit on it too: sandpaper at 0, leaves and port-a-potty paper at 2, a cloud at 11 just past the end. They live only on this page. Plain HTML and CSS, no JS |
+| `/softness` | The softness scale: every rated line on a 0 to 10 scale, one long strip of paper, least soft first. A few reference points that aren't products sit on it too: sandpaper at 0, port-a-potty paper at 2, a cloud at 11 just past the end. They live only on this page. Plain HTML and CSS, no JS |
 | `/about` | How it works, for people: why sheets beat "rolls" in three cards, then a short FAQ (`<details>` accordion, works without JS) |
 | `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. It sits under How it works: no tab of its own, the About tab shows as current, and the breadcrumb is Home > About > Data & API |
 | `/charmin-mega-vs-quilted-northern-mega`, `/how-many-sheets-in-a-mega-roll`, `/cheapest-toilet-paper-per-sheet` | Short guides that answer one question each and link into the tools |
@@ -31,7 +31,7 @@ The nav has four tabs in a pill (Best deal, Roll converter, Softness, How it wor
 
 ### Softness
 
-Softness has no industry standard and no printed number, so `data.js` has a `softness` block: one coarse score from 1 to 10 per product line, and each product's `soft` key names its line. Regular rolls and custom rolls are never rated. The method, as it appears on `/softness` and `/data#softness`:
+Softness has no industry standard and no printed number, so `data.js` has a `softness` block: one coarse score from 0 to 10 per product line, and each product's `soft` key names its line. Regular rolls and custom rolls are never rated. The method, as it appears on `/softness` and `/data#softness`:
 
 1. Start from TechGearLab's tester-panel softness score (updated 2025-02-13), the one current test that puts a number on most lines, rounded to a whole number.
 2. Move a line by one point at most when another independent test clearly disagrees: Good Housekeeping Institute (updated 2026-02-10; a blind tester panel plus an EmTec Tissue Softness Analyzer run by NC State) or Reviewed (updated 2024-05-02; hands-on).
