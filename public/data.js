@@ -1,0 +1,212 @@
+// Toilet Paper Math data.
+// Every number below comes from packaging text on manufacturer and retailer
+// listings, checked October 2026. Nothing here is invented.
+//
+// flags.sheets / flags.size:
+//   "derived"   = computed from other printed numbers (usually total sq ft)
+//   "estimated" = not found printed anywhere, assumed from a sibling product
+//
+// printedTotal = the total square footage printed on the pack, when we had one.
+// It lets the sources table show our math next to the printed number.
+
+window.TP_DATA = {
+  checked: "October 2026",
+  honestRollSqFt: 6,
+
+  brands: {
+    charmin: { name: "Charmin", short: "Charmin" },
+    qn: { name: "Quilted Northern", short: "QN" },
+  },
+
+  products: [
+    // ---------- Charmin ----------
+    {
+      id: "ch-us-mega",
+      brand: "charmin",
+      name: "Ultra Soft Mega",
+      sheets: 208, width: 4, length: 3.92, ply: 2,
+      claim: 4,
+      defaultRolls: 6,
+      note: "Older packs listed 244 sheets. Same name, same \"= 4 regular\" promise.",
+      source: "Stop & Shop, Staples listings (packaging text)",
+      flags: {},
+    },
+    {
+      id: "ch-us-megaxl",
+      brand: "charmin",
+      name: "Ultra Soft Mega XL",
+      sheets: 312, width: 4, length: 3.92, ply: 2,
+      claim: 6,
+      defaultRolls: 6,
+      printedTotal: { sqft: 203, rolls: 6 },
+      note: "Formerly called \"Super Mega\". 50% more sheets than Mega.",
+      source: "Hannaford, Staples",
+      flags: {},
+    },
+    {
+      id: "ch-us-megaxxl",
+      brand: "charmin",
+      name: "Ultra Soft Mega XXL",
+      sheets: 416, width: 4.27, length: 3.72, ply: 2,
+      claim: 8,
+      defaultRolls: 12,
+      printedTotal: { sqft: 550, rolls: 12 },
+      note: "Different sheet shape: wider and shorter than Mega and Mega XL.",
+      source: "Giant Food, Kroger",
+      flags: {},
+    },
+    {
+      id: "ch-ust-mega",
+      brand: "charmin",
+      name: "Ultra Strong Mega",
+      sheets: 220, width: 4, length: 3.92, ply: 2,
+      claim: 4,
+      defaultRolls: 6,
+      printedTotal: { sqft: 143, rolls: 6 },
+      note: "Twelve more sheets than Ultra Soft Mega, same \"= 4 regular\" claim.",
+      source: "Hannaford",
+      flags: {},
+    },
+    {
+      id: "ch-ust-megaxl",
+      brand: "charmin",
+      name: "Ultra Strong Mega XL",
+      sheets: 330, width: 4, length: 3.92, ply: 2,
+      claim: 6,
+      defaultRolls: 8,
+      printedTotal: { sqft: 287, rolls: 8 },
+      note: "Sheet size worked out from the printed 287 sq ft per 8 rolls.",
+      source: "Hannaford",
+      flags: { size: "derived" },
+    },
+    {
+      id: "ch-ust-megaxxl",
+      brand: "charmin",
+      name: "Ultra Strong Mega XXL",
+      sheets: 440, width: 4.27, length: 3.72, ply: 2,
+      claim: 8,
+      defaultRolls: 12,
+      printedTotal: { sqft: 582, rolls: 12 },
+      note: "charmin.com's size table: Regular = 1, Mega = 4, Mega XL = 6, Mega XXL = 8.",
+      source: "charmin.com, Hannaford, Walmart",
+      flags: { size: "derived" },
+    },
+    {
+      id: "ch-ust-supermega",
+      brand: "charmin",
+      name: "Ultra Strong Super Mega (older pack)",
+      sheets: 363, width: 4, length: 3.92, ply: 2,
+      claim: 6,
+      defaultRolls: 6,
+      note: "The older name and the older, higher sheet count.",
+      source: "Staples",
+      flags: {},
+    },
+    {
+      id: "ch-ess-mega",
+      brand: "charmin",
+      name: "Essentials Mega (1-ply)",
+      sheets: 407, width: 4, length: 3.92, ply: 1,
+      claim: 4,
+      defaultRolls: 12,
+      printedTotal: { sqft: 531, rolls: 12 },
+      note: "New 1-ply line that replaced Essentials Soft and Essentials Strong. Sheet size is approximate.",
+      source: "charmin.com, Dollar General",
+      flags: { size: "derived" },
+    },
+    {
+      id: "ch-regular",
+      brand: "charmin",
+      name: "Regular roll",
+      sheets: 52, width: 4, length: 3.92, ply: 2,
+      claim: 1,
+      isRegular: true,
+      note: "Never printed anywhere. 208 Mega sheets divided by its \"= 4 regular\" claim gives 52.",
+      source: "Derived from Ultra Soft Mega (208 / 4)",
+      flags: { sheets: "derived" },
+    },
+
+    // ---------- Quilted Northern ----------
+    {
+      id: "qn-up-mega",
+      brand: "qn",
+      name: "Ultra Plush Mega",
+      sheets: 255, width: 4, length: 3.8, ply: 3,
+      claim: 4,
+      defaultRolls: 6,
+      printedTotal: { sqft: 161.5, rolls: 6 },
+      note: "Pack footnote: compared to a regular roll with 63 sheets.",
+      source: "Hannaford, Stop & Shop",
+      flags: {},
+    },
+    {
+      id: "qn-up-supermega",
+      brand: "qn",
+      name: "Ultra Plush Super Mega",
+      sheets: 378, width: 3.7, length: 4.1, ply: 3,
+      claim: 6,
+      defaultRolls: 8,
+      printedTotal: { sqft: 318.5, rolls: 8 },
+      note: "QN's FAQ says Super Mega sheets are 0.3 in shorter and 0.3 in wider than Mega.",
+      source: "quiltednorthern.com FAQ, Publix",
+      flags: { size: "derived" },
+    },
+    {
+      id: "qn-uss-mega",
+      brand: "qn",
+      name: "Ultra Soft & Strong Mega",
+      sheets: 255, width: 4, length: 3.8, ply: 2,
+      claim: 4,
+      defaultRolls: 12,
+      note: "QN brags 255 sheets vs the \"leading brand\" Mega at 208. Older packs had 328.",
+      source: "quiltednorthern.com, Hannaford",
+      flags: {},
+    },
+    {
+      id: "qn-uss-supermega6",
+      brand: "qn",
+      name: "Ultra Soft & Strong Super Mega (6 pack)",
+      sheets: 378, width: 3.7, length: 4.1, ply: 2,
+      claim: 6,
+      defaultRolls: 6,
+      note: "Sheet size assumed to match Ultra Plush Super Mega. Not found printed.",
+      source: "Hannaford",
+      flags: { size: "estimated" },
+    },
+    {
+      id: "qn-uss-supermega8",
+      brand: "qn",
+      name: "Ultra Soft & Strong Super Mega (8 pack, 438 sheets)",
+      sheets: 438, width: 3.7, length: 4.1, ply: 2,
+      claim: 6,
+      defaultRolls: 8,
+      printedTotal: { sqft: 369.1, rolls: 8 },
+      note: "Same name, more sheets, still says \"= 6 regular\".",
+      source: "Amazon listing (8 rolls = 48 regular), Hannaford",
+      flags: { size: "derived" },
+    },
+    {
+      id: "qn-regular",
+      brand: "qn",
+      name: "Regular roll",
+      sheets: 63, width: 4, length: 3.8, ply: 3,
+      claim: 1,
+      isRegular: true,
+      note: "63 sheets is printed in the Ultra Plush pack footnote. Sheet size assumed to match Mega, 3-ply on the Ultra Plush basis.",
+      source: "Quilted Northern Ultra Plush pack footnote",
+      flags: { size: "estimated" },
+    },
+  ],
+
+  // Older sheet counts seen on listings for the same product name.
+  history: {
+    "ch-us-mega": { sheets: 244, label: "Older listings" },
+    "qn-uss-mega": { sheets: 328, label: "Older packs" },
+  },
+
+  // Example prices for the deal calculator. Made up, not real store prices.
+  exampleRows: [
+    { productId: "ch-us-megaxl", rolls: 6, price: 9.99 },
+    { productId: "qn-uss-mega", rolls: 12, price: 13.49 },
+  ],
+};

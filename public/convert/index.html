@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math</title>
+  <meta name="description" content="Convert any Charmin or Quilted Northern roll into any other: sheets, square feet and regular rolls, side by side.">
+  <link rel="canonical" href="https://toiletpaper.app/convert">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Toilet Paper Math">
+  <meta property="og:title" content="Roll converter: what Mega, Mega XL and Super Mega really mean">
+  <meta property="og:description" content="Convert any Charmin or Quilted Northern roll into any other: sheets, square feet and regular rolls, side by side.">
+  <meta property="og:url" content="https://toiletpaper.app/convert">
+  <meta name="twitter:card" content="summary">
+  <meta name="theme-color" content="#FFF8EC">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧻</text></svg>">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body data-page="convert">
+  <a class="skip-link" href="#main">Skip to the converter</a>
+  <div class="sky" id="sky" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/">
+        <svg class="mascot" viewBox="60 40 240 260" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <mask id="tail-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="360" height="400">
+              <path class="tail-reveal" d="M150 150 C 150 230, 60 230, 80 300 S 220 360, 250 390" fill="none" stroke="#fff" stroke-width="90" pathLength="100" />
+            </mask>
+          </defs>
+          <g mask="url(#tail-mask)">
+            <path d="M150 150 C 150 230, 60 230, 80 300 S 220 360, 250 390" fill="none" stroke="#E4D3BC" stroke-width="66" />
+            <path d="M150 150 C 150 230, 60 230, 80 300 S 220 360, 250 390" fill="none" stroke="#FFFFFF" stroke-width="60" />
+            <path d="M150 150 C 150 230, 60 230, 80 300 S 220 360, 250 390" fill="none" stroke="#D9C6AE" stroke-width="60" stroke-dasharray="1.5 34" />
+          </g>
+          <g class="roll-body">
+            <rect x="90" y="60" width="150" height="120" rx="6" fill="#FFFFFF" stroke="#2E2140" stroke-width="7" />
+            <ellipse cx="240" cy="120" rx="34" ry="60" fill="#FFFDF8" stroke="#2E2140" stroke-width="7" />
+            <ellipse cx="240" cy="120" rx="12" ry="22" fill="#C99A63" stroke="#2E2140" stroke-width="6" />
+            <circle cx="130" cy="112" r="7" fill="#2E2140" />
+            <circle cx="180" cy="112" r="7" fill="#2E2140" />
+            <ellipse cx="114" cy="134" rx="11" ry="7" fill="#FFB3C7" />
+            <ellipse cx="196" cy="134" rx="11" ry="7" fill="#FFB3C7" />
+            <path d="M140 132 Q 155 148 170 132" fill="none" stroke="#2E2140" stroke-width="6" stroke-linecap="round" />
+            <rect x="120" y="176" width="60" height="10" fill="#FFFFFF" />
+          </g>
+        </svg>
+        <span class="brand-text">
+          <span class="brand-name">Toilet Paper Math</span>
+          <span class="brand-tag">Mega, Mega XL, Super Mega, decoded</span>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Tools">
+        <a href="/">Best deal</a>
+        <a href="/convert" aria-current="page">Roll converter</a>
+        <a href="/about">How it works</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap page">
+    <div class="page-head">
+      <h1>Roll converter</h1>
+      <p class="lede">See what's on a roll and what one of it equals in every other roll.</p>
+    </div>
+
+    <div class="conv-layout">
+      <section class="conv-left" aria-label="Pick a roll">
+        <div class="toolbar">
+          <label class="field">
+            <span class="field-label">Roll</span>
+            <select id="conv-select"></select>
+          </label>
+          <div class="segmented" role="radiogroup" aria-labelledby="conv-mode-label">
+            <span class="seg-label" id="conv-mode-label">Compare by</span>
+            <label><input type="radio" name="conv-mode" value="sheets" checked><span>Sheets</span></label>
+            <label><input type="radio" name="conv-mode" value="area"><span>Paper area</span></label>
+            <label><input type="radio" name="conv-mode" value="ply"><span>Area × ply</span></label>
+          </div>
+        </div>
+
+        <div class="roll-card" id="conv-card"></div>
+
+        <div class="equals-hero" id="conv-regulars" aria-live="polite"></div>
+        <p class="claim-check" id="conv-claim-check"></p>
+      </section>
+
+      <section class="conv-right panel" aria-labelledby="chart-title">
+        <div class="chart-head">
+          <h2 id="chart-title">Every roll</h2>
+          <div class="legend" aria-hidden="true">
+            <span><i class="swatch charmin"></i>Charmin</span>
+            <span><i class="swatch qn"></i>Quilted Northern</span>
+            <span><i class="swatch regular"></i>Regular</span>
+          </div>
+        </div>
+        <div class="chart-cols" aria-hidden="true"><span>Roll</span><span id="chart-unit">Sheets per roll</span><span id="chart-ratio-head">Equals</span></div>
+        <div class="chart" id="chart" role="group" aria-labelledby="chart-title"></div>
+        <p class="hint">Tap a row to convert that roll instead.</p>
+      </section>
+    </div>
+
+    <details class="how">
+      <summary>How this works</summary>
+      <ul>
+        <li><strong>Sheets</strong> compares sheets per roll. <strong>Paper area</strong> compares square feet (sheets × sheet width × sheet length). <strong>Area × ply</strong> also counts a 3-ply square as 1.5 times a 2-ply square.</li>
+        <li>Each brand measures "= N regular rolls" against its own regular roll: 52 sheets at Charmin (worked out from the Mega pack) and 63 at Quilted Northern (printed on the pack).</li>
+        <li>An <strong>Honest Roll</strong> is 6 square feet of paper, about one regular roll from either brand.</li>
+        <li>Values tagged <span class="tag tag-derived">derived</span> were computed from other printed numbers. <span class="tag tag-estimated">estimated</span> means not found printed. <a href="/about">Sources and notes</a>.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <p>Numbers from pack labels, checked October 2026. <a href="/about#sources">Sources</a>. Not affiliated with Charmin or Quilted Northern.</p>
+      <button type="button" class="btn-link" id="pause-toggle" aria-pressed="false">Pause the rolls</button>
+    </div>
+  </footer>
+
+  <script src="/data.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
