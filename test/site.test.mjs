@@ -19,10 +19,10 @@ const strip = (s) => s.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/
 const { D, Core } = loadCore(fileURLToPath(new URL("..", import.meta.url)));
 
 const INDEXED = [
-  "/", "/convert", "/about",
+  "/", "/convert", "/about", "/data",
   "/charmin-mega-vs-quilted-northern-mega", "/how-many-sheets-in-a-mega-roll", "/cheapest-toilet-paper-per-sheet",
 ];
-const GUIDES = INDEXED.slice(3);
+const GUIDES = INDEXED.slice(4);
 const absolute = (path) => ORIGIN + (path === "/" ? "/" : path);
 const ldOf = (page) => [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 const graphOf = (page) => ldOf(page).flatMap((d) => d["@graph"] ?? [d]);
@@ -144,7 +144,9 @@ test("the FAQPage JSON-LD matches the FAQ visible on /about", async () => {
   const faq = graphOf(page).find((n) => n["@type"] === "FAQPage");
   assert.ok(faq.mainEntity.length >= 5);
   const section = pick(page, /<section class="about-section faq"[^>]*>([\s\S]*?)<\/section>/);
-  const visible = [...section.matchAll(/<h3>([\s\S]*?)<\/h3><p>([\s\S]*?)<\/p>/g)].map((m) => ({ q: strip(m[1]), a: strip(m[2]) }));
+  const items = [...section.matchAll(/<details class="faq-item" id="[a-z-]+"><summary>([\s\S]*?)<\/summary><div class="faq-answer">([\s\S]*?)<\/div><\/details>/g)];
+  assert.equal(items.length, (section.match(/<details/g) || []).length, "every FAQ item has the expected markup");
+  const visible = items.map((m) => ({ q: strip(m[1]), a: strip(m[2]) }));
   assert.deepEqual(faq.mainEntity.map((q) => ({ q: q.name, a: q.acceptedAnswer.text })), visible);
   for (const path of INDEXED.filter((p) => p !== "/about")) assert.ok(!graphOf(await html(path)).some((n) => n["@type"] === "FAQPage"), path);
 });
@@ -172,11 +174,44 @@ test("sitemap.xml lists every indexed page with lastmod, and nothing else", asyn
   for (const path of INDEXED) assert.equal((await get(path)).status, 200, path);
 });
 
-test("guides are linked from every page's footer", async () => {
+test("every page's footer is one line with Sources and Data & API", async () => {
   for (const path of [...INDEXED, "/nope"]) {
     const footer = pick(await html(path), /<footer[^>]*>([\s\S]*?)<\/footer>/);
-    for (const guide of GUIDES) assert.ok(footer.includes(`href="${guide}"`), `${path} footer links ${guide}`);
+    const lines = [...footer.matchAll(/<(p|ul|ol|div class="(?!wrap)[^"]*")[ >]/g)];
+    assert.equal(lines.filter((m) => m[1] === "p").length, 1, `${path}: one paragraph`);
+    assert.equal(lines.length, 1, `${path}: nothing but that line`);
+    const links = [...footer.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)].map((m) => [m[1], m[2]]);
+    assert.deepEqual(links, [["/data#sources", "Sources"], ["/data", "Data &amp; API"]], path);
+    assert.match(strip(footer), /^Not affiliated with any brand · Sources · Data & API$/, path);
   }
+});
+
+test("every guide is linked from /about and the 404 page", async () => {
+  for (const path of ["/about", "/nope"]) {
+    const page = await html(path);
+    for (const guide of GUIDES) assert.ok(page.includes(`href="${guide}"`), `${path} links ${guide}`);
+  }
+});
+
+test("/about is the plain-language page and /data holds the technical material", async () => {
+  const about = pick(await html("/about"), /<main[^>]*>([\s\S]*?)<\/main>/);
+  for (const bit of ["/api/", "openapi", "llms", "?mode=", "<table", "<pre", "<code"]) assert.ok(!about.includes(bit), `/about has no ${bit}`);
+  assert.ok(about.includes('href="/data#sources"'), "/about points to the sources on /data");
+  assert.match(about, /<details class="faq-item" id="sources">/, "old /about#sources links land on the sources answer");
+  assert.match(about, /<details class="faq-item" id="data">/, "old /about#data links land on the data answer");
+  const data = pick(await html("/data"), /<main[^>]*>([\s\S]*?)<\/main>/);
+  for (const bit of ['href="/api/products"', 'href="/api/compare?', 'href="/openapi.json"', 'href="/llms.txt"', 'href="/llms-full.txt"', "?mode=sheets&amp;a=", "custom:&lt;sheets&gt;", "/convert?roll=", 'id="sources"', "<table"]) {
+    assert.ok(data.includes(bit), `/data has ${bit}`);
+  }
+  const ld = graphOf(await html("/data"));
+  assert.deepEqual(ld.find((n) => n["@type"] === "BreadcrumbList").itemListElement.map((i) => i.name), ["Home", "Data & API"]);
+});
+
+test("the API example on /data is the API's real output", async () => {
+  const data = await html("/data");
+  const link = pick(data, /<a href="(\/api\/compare\?[^"]+)">/).replace(/&amp;/g, "&");
+  const shown = pick(data, /<pre class="code-block"><code>([\s\S]*?)<\/code><\/pre>/).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  assert.deepEqual(JSON.parse(shown), await json(link));
 });
 
 test("llms.txt and llms-full.txt are Markdown with absolute links", async () => {
@@ -213,7 +248,8 @@ test("openapi.json is OpenAPI 3.1 and describes both endpoints", async () => {
   const b = spec.paths["/api/compare"].get.parameters.find((p) => p.name === "b").example;
   assert.equal((await get(`/api/compare?a=${a}&b=${b}`)).status, 200);
   // Linked from llms.txt and the about page.
-  assert.ok((await html("/about")).includes('href="/openapi.json"'));
+  assert.ok((await html("/data")).includes('href="/openapi.json"'));
+  assert.equal(spec.externalDocs.url, `${ORIGIN}/data`);
 });
 
 test("the IndexNow key file serves the key as plain text", async () => {
@@ -250,10 +286,10 @@ test("GET /api/products lists every brand and roll", async () => {
 
 test("the HTML tables, the API and llms-full.txt agree", async () => {
   const api = (await json("/api/products")).products;
-  const about = await html("/about");
+  const data = await html("/data");
   for (const p of api) {
-    const row = pick(about, new RegExp(`<a href="/convert\\?roll=${p.id}">[^<]*</a></th>([\\s\\S]*?)</tr>`));
-    assert.ok(row, `/about has a row for ${p.id}`);
+    const row = pick(data, new RegExp(`<a href="/convert\\?roll=${p.id}">[^<]*</a></th>([\\s\\S]*?)</tr>`));
+    assert.ok(row, `/data has a row for ${p.id}`);
     const cells = [...row.matchAll(/<td class="num">([\s\S]*?)<\/td>/g)].map((m) => strip(m[1]));
     assert.equal(parseInt(cells[0], 10), p.sheetsPerRoll, p.id);
     assert.ok(cells[1].startsWith(`${p.sheetWidthIn} × ${p.sheetLengthIn} in`), `${p.id}: ${cells[1]}`);

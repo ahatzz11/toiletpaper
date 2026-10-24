@@ -102,7 +102,6 @@ export function renderPage(page, ctx) {
   ].filter(Boolean).map((l) => "  " + l).join("\n");
 
   const nav = NAV.map((n) => `        <a href="${n.path}"${n.key === page.nav ? ' aria-current="page"' : ""}>${n.label}</a>`).join("\n");
-  const footerLinks = ctx.footerLinks.map((l) => `<li><a href="${l.path}">${esc(l.label)}</a></li>`).join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -172,9 +171,8 @@ ${nav}
   </main>
 
   <footer class="site-footer">
-    <div class="wrap footer-inner">
-      <ul class="footer-links">${footerLinks}</ul>
-      <p>Numbers from pack labels, checked ${esc(ctx.checked)}. Not affiliated with ${esc(ctx.brandList)}.</p>
+    <div class="wrap">
+      <p class="footer-line">Not affiliated with any brand <span aria-hidden="true">·</span> <a href="/data#sources">Sources</a> <span aria-hidden="true">·</span> <a href="/data">Data &amp; API</a></p>
     </div>
   </footer>
 

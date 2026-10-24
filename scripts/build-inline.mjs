@@ -109,7 +109,7 @@ const assetUrl = (path) => {
 // ---------- pages and generated files ----------
 const { D, Core, dataSource, coreSource } = loadCore(root);
 const site = buildSite(D, Core);
-const ctx = { siteDescription: site.siteDescription, footerLinks: site.footerLinks, checked: D.checked, brandList: site.brandList };
+const ctx = { siteDescription: site.siteDescription };
 
 // Point every page at the hashed paths, in href, src and meta content (where share tags use
 // https://toiletpaper.app/media/share.png). A reference to one of these file types on this site

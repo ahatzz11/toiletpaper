@@ -55,7 +55,8 @@ Read-only JSON, free to use with a link back. CORS is open.
 
 - [${ORIGIN}/api/products](${ORIGIN}/api/products): every brand and roll with sheets per roll, sheet size, square feet, ply, what it equals in regular rolls, and its source.
 - [${ORIGIN}/api/compare](${compareExample}): \`GET /api/compare?mode=sheets&a=<id>,<rolls>,<price>&b=...\` (2 to ${Core.MAX_PACKS} packs) returns the cost per 100 sheets, per square foot and per square foot × ply for each pack, the winner, the percent difference and a link to the same comparison in the calculator.
-- [${ORIGIN}/openapi.json](${ORIGIN}/openapi.json): OpenAPI 3.1 description of both endpoints.`;
+- [${ORIGIN}/openapi.json](${ORIGIN}/openapi.json): OpenAPI 3.1 description of both endpoints.
+- [${ORIGIN}/data](${ORIGIN}/data): the same docs for people, with the full roll table and a source for every number.`;
 
   const llms = `# ${SITE_NAME}
 
@@ -91,7 +92,7 @@ ${deepLinks}
 
   const llmsFull = `# ${SITE_NAME}: full reference
 
-> ${site.siteDescription} Numbers checked ${D.checked}. Source: ${ORIGIN}/about#sources
+> ${site.siteDescription} Numbers checked ${D.checked}. Sources: ${ORIGIN}/data#sources
 
 ## Every roll
 
@@ -163,7 +164,7 @@ ${deepLinks}
       description: `Read-only data about ${site.brandList} toilet paper rolls, and a price comparison. Free to use; please link to ${ORIGIN}.`,
     },
     servers: [{ url: ORIGIN }],
-    externalDocs: { url: `${ORIGIN}/llms.txt` },
+    externalDocs: { description: "Data & API", url: `${ORIGIN}/data` },
     paths: {
       "/api/products": {
         get: {

@@ -26,7 +26,9 @@ const ASSETS = [
 const PAGES = [
   { path: "/", title: "Which toilet paper pack is the better deal? | Toilet Paper Math" },
   { path: "/convert", title: "Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math" },
-  { path: "/about", title: "How it works and sources | Toilet Paper Math" },
+  { path: "/about", title: "How it works: why sheets beat rolls | Toilet Paper Math" },
+  // Low-key on purpose: linked from the footer, not the nav.
+  { path: "/data", title: "Data &amp; API: every roll, its sources and a JSON API | Toilet Paper Math", nav: false },
 ];
 const GUIDES = [
   { path: "/charmin-mega-vs-quilted-northern-mega" },
@@ -49,9 +51,10 @@ for (const page of PAGES) {
     assert.ok(pick(html, /<meta name="description" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:title" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:description" content="([^"]+)">/));
-    // Every page links to every tool, and marks itself as current.
+    // Every page links to every page here, and nav pages mark themselves as current.
     for (const other of PAGES) assert.ok(html.includes(`<a href="${other.path}"`), `${page.path} links to ${other.path}`);
-    assert.ok(html.includes(`<a href="${page.path}" aria-current="page">`));
+    if (page.nav !== false) assert.ok(html.includes(`<a href="${page.path}" aria-current="page">`));
+    else assert.doesNotMatch(html, /<a [^>]*aria-current/);
   });
 }
 

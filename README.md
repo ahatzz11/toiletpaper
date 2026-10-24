@@ -6,12 +6,26 @@ A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern 
 | --- | --- |
 | `/` | Deal calculator: pick the packs on the shelf, type the prices, see which costs less |
 | `/convert` | Roll converter: what one roll equals in every other roll, with a chart of all rolls |
-| `/about` | How it works: each brand's "regular roll", a table of every roll, shrinkflation notes, FAQ, data links, sources |
+| `/about` | How it works, for people: why sheets beat "rolls" in three cards, then a short FAQ (`<details>` accordion, works without JS) |
+| `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. Linked from the footer, not the nav |
 | `/charmin-mega-vs-quilted-northern-mega`, `/how-many-sheets-in-a-mega-roll`, `/cheapest-toilet-paper-per-sheet` | Short guides that answer one question each and link into the tools |
 | `/api/products`, `/api/compare` | Read-only JSON API, described in `/openapi.json` |
 | `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/llms-full.txt` | For crawlers and AI assistants |
 
 Both tools compare by sheet count by default. Paper area and area × ply are one click away.
+
+Every page ends with the same one-line footer: "Not affiliated with any brand · Sources · Data & API", linking to `/data#sources` and `/data`. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
+
+## Data
+
+`public/data.js` holds every number. The rule for sources: **manufacturer numbers beat retailer listings.**
+
+- When the maker's own site or pack photo (charmin.com, quiltednorthern.com, angelsoft.com and other P&G or Georgia-Pacific pages) gives a number, use that value, and list that page first in the product's `sources`.
+- Retailer listings (Target, Walmart, Kroger and the like) are a fallback for numbers the maker doesn't publish. Say so in the product's `source` note.
+- Label each source link with the numbers it backs, like `charmin.com (sheets, claim)` or `Hannaford (size, pack total)`, so the sources table shows which numbers came from whom.
+- A manufacturer record that current packs contradict isn't used, but stays listed with a note. Today that's P&G SmartLabel's Charmin Ultra Soft Mega, Mega XL and Mega XXL records (224, 336 and 440 sheets, last updated 2022). Current packs print 208, 312 and 416, with square-foot totals that match.
+- A number computed from other printed numbers is flagged `derived`. A number we couldn't find printed and borrowed from a sibling product is `estimated`. Both show as tags on the site.
+- Update `checked` in `data.js` and `UPDATED` in `src/site/config.mjs` when you recheck.
 
 ## How it's built
 
@@ -88,9 +102,9 @@ The build fails if the output would reach 3 MB. Most of the size is the base64 v
 ## Search, previews and AI assistants
 
 - Every page has its own title and description, an absolute canonical, Open Graph and Twitter tags, `theme-color`, and icons (SVG, ICO, apple-touch-icon, a web manifest with 192 and 512 PNGs).
-- JSON-LD: `WebSite` on every page, `WebApplication` on the two tools, `BreadcrumbList` on subpages, and `FAQPage` on `/about`, built from the same list as the visible FAQ.
+- JSON-LD: `WebSite` on every page, `WebApplication` on the two tools, `BreadcrumbList` on subpages, and `FAQPage` on `/about`, built from the same list as the visible FAQ. A test checks that they match.
 - robots.txt allows everything, with an explicit group for each major search and AI crawler, and points at the sitemap.
-- llms.txt is a short Markdown guide to the site, the API and the link format. llms-full.txt adds the full roll table, the method and the FAQ.
+- llms.txt is a short Markdown guide to the site, the API and the link format, and points to `/data`. llms-full.txt adds the full roll table, the method and the FAQ.
 - The share preview is `public/media/share.png` (1200x630) and an 8 second looping video, `share.mp4`. `npm run media` renders both from `scripts/share-media/scene.html`, which uses the site's own background rolls. Frame 0 of the video is the image. There is no `twitter:player` card, because it needs a separate HTTPS player page for an iframe and would replace the large image card.
 - The background rolls animate with transforms only, pause while the tab is hidden, and don't render at all with `prefers-reduced-motion`.
 

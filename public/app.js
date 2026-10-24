@@ -241,6 +241,19 @@
     renderConverter();
   }
 
+  // ---------- FAQ: /about#sources opens that answer ----------
+  function openLinkedAnswer() {
+    var id = location.hash.slice(1);
+    var target = id && document.getElementById(decodeURIComponent(id));
+    var item = target && target.closest("details");
+    if (item && !item.open) {
+      item.open = true;
+      target.scrollIntoView();
+    }
+  }
+  openLinkedAnswer();
+  window.addEventListener("hashchange", openLinkedAnswer);
+
   // ---------- go ----------
   if (D && Core) {
     setupSky();
