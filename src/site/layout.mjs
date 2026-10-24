@@ -4,9 +4,10 @@
 import { ORIGIN, SITE_NAME, SHARE } from "./config.mjs";
 
 const NAV = [
-  { key: "deal", path: "/", label: "Best deal" },
-  { key: "convert", path: "/convert", label: "Roll converter" },
+  { key: "deal", path: "/", label: "Best deal", short: "Deal" },
+  { key: "convert", path: "/convert", label: "Roll converter", short: "Converter" },
   { key: "about", path: "/about", label: "How it works" },
+  { key: "data", path: "/data", label: "Data" },
 ];
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -101,7 +102,7 @@ export function renderPage(page, ctx) {
     `<link rel="manifest" href="/site.webmanifest">`,
   ].filter(Boolean).map((l) => "  " + l).join("\n");
 
-  const nav = NAV.map((n) => `        <a href="${n.path}"${n.key === page.nav ? ' aria-current="page"' : ""}>${n.label}</a>`).join("\n");
+  const nav = NAV.map((n) => `        <a href="${n.path}"${n.key === page.nav ? ' aria-current="page"' : ""}>${n.short ? `<span class="nav-long">${n.label}</span><span class="nav-short">${n.short}</span>` : n.label}</a>`).join("\n");
 
   return `<!doctype html>
 <html lang="en">
@@ -120,6 +121,7 @@ ${meta}
     :where(.mascot) { width: 58px; height: 63px; flex: none; }
     :where(.brand-text) { display: flex; flex-direction: column; line-height: 1.15; }
     :where(.site-nav) { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    :where(.nav-short) { display: none; }
     @media (max-width: 640px) { :where(.mascot) { width: 40px; height: 44px; } }
   </style>
   <link rel="stylesheet" href="/styles.css">
@@ -160,7 +162,7 @@ ${meta}
           <span class="brand-tag">Mega, Mega XL, Super Mega, decoded</span>
         </span>
       </a>
-      <nav class="site-nav" aria-label="Tools">
+      <nav class="site-nav" aria-label="Main">
 ${nav}
       </nav>
     </div>
@@ -172,7 +174,7 @@ ${nav}
 
   <footer class="site-footer">
     <div class="wrap">
-      <p class="footer-line">Not affiliated with any brand <span aria-hidden="true">·</span> <a href="/data#sources">Sources</a> <span aria-hidden="true">·</span> <a href="/data">Data &amp; API</a></p>
+      <p class="footer-line">Not affiliated with any brand</p>
     </div>
   </footer>
 

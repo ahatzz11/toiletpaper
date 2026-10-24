@@ -24,6 +24,9 @@ var TP_DATA = {
     charmin: { slug: "charmin", name: "Charmin", short: "Charmin", maker: "Procter & Gamble", regularId: "charmin-regular" },
     qn: { slug: "quilted-northern", name: "Quilted Northern", short: "QN", maker: "Georgia-Pacific", regularId: "quilted-northern-regular" },
     angel: { slug: "angel-soft", name: "Angel Soft", short: "Angel Soft", maker: "Georgia-Pacific", regularId: "angel-soft-regular" },
+    // Kirkland prints no "= N regular rolls" claim, so it has no regular roll: its own roll is
+    // the unit, and the converter measures it in the other brands' regular rolls.
+    kirkland: { slug: "kirkland-signature", name: "Kirkland Signature", short: "Kirkland", maker: "Costco", regularId: null },
   },
 
   products: [
@@ -334,6 +337,43 @@ var TP_DATA = {
       source: "Derived from Mega (320 / 4) and Mega XL (480 / 6)",
       sources: [],
       flags: { sheets: "derived", size: "estimated" },
+    },
+
+    // ---------- Kirkland Signature (Costco) ----------
+    // No size names and no "= N regular" claim. claim: null, size: null.
+    {
+      id: "kirkland-signature-bath-tissue",
+      brand: "kirkland",
+      line: "Bath Tissue", size: null,
+      name: "Bath Tissue",
+      sheets: 380, width: 4.5, length: 4, ply: 2,
+      claim: null,
+      defaultRolls: 30,
+      printedTotal: { sqft: 1425, rolls: 30 },
+      note: "Costco item 6262016. No \"= N regular\" claim: Costco prints the sheet count, sheet size and total square feet instead.",
+      source: "costco.com and Costco Business Center for sheets, sheet size, ply, rolls and pack total.",
+      sources: [
+        { name: "costco.com (sheets, size, ply, pack total)", url: "https://www.costco.com/p/-/kirkland-signature-bath-tissue-2-ply-380-sheets-30-rolls/100645583" },
+        { name: "Costco Business Center (sheets, size, ply)", url: "https://www.costcobusinessdelivery.com/p/-/kirkland-signature-bath-tissue-2-ply-45-x-4-380-sheets-30-ct/100364055" },
+      ],
+      flags: {},
+    },
+    {
+      id: "kirkland-signature-ultra-soft-bath-tissue",
+      brand: "kirkland",
+      line: "Ultra Soft", size: null,
+      name: "Ultra Soft Bath Tissue",
+      sheets: 231, width: 4.5, length: 4, ply: 2,
+      claim: null,
+      defaultRolls: 36,
+      printedTotal: { sqft: 1039.5, rolls: 36 },
+      note: "Costco item 1725952. Fewer sheets per roll than the regular Kirkland roll, same sheet size. No \"= N regular\" claim.",
+      source: "costco.com and Costco Business Center for sheets, sheet size, ply, rolls and pack total.",
+      sources: [
+        { name: "costco.com (sheets, size, ply, pack total)", url: "https://www.costco.com/p/-/kirkland-signature-ultra-soft-bath-tissue-2-ply-231-sheets-36-rolls/4000206004" },
+        { name: "Costco Business Center (sheets, size, ply)", url: "https://www.costcobusinessdelivery.com/p/-/kirkland-signature-ultrasoft-premium-bath-tissue-2-ply-45-x-40-231-sheets-36-ct/2001151698" },
+      ],
+      flags: {},
     },
   ],
 

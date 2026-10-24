@@ -1,20 +1,20 @@
 # Toilet Paper Math
 
-A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern and Angel Soft toilet paper, whose roll names (Mega, Mega XL, Super Mega and the rest) don't say how much paper you get.
+A small site at https://toiletpaper.app for comparing Charmin, Quilted Northern, Angel Soft and Kirkland Signature (Costco) toilet paper, whose roll names (Mega, Mega XL, Super Mega and the rest) don't say how much paper you get.
 
 | Route | Page |
 | --- | --- |
 | `/` | Deal calculator: pick the packs on the shelf, type the prices, see which costs less |
 | `/convert` | Roll converter: what one roll equals in every other roll, with a chart of all rolls |
 | `/about` | How it works, for people: why sheets beat "rolls" in three cards, then a short FAQ (`<details>` accordion, works without JS) |
-| `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. Linked from the footer, not the nav |
+| `/data` | Data & API: every roll in one table, the sources table, the API with a live example, the link format, and links to llms.txt, llms-full.txt and openapi.json. The "Data" tab in the nav |
 | `/charmin-mega-vs-quilted-northern-mega`, `/how-many-sheets-in-a-mega-roll`, `/cheapest-toilet-paper-per-sheet` | Short guides that answer one question each and link into the tools |
 | `/api/products`, `/api/compare` | Read-only JSON API, described in `/openapi.json` |
 | `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/llms-full.txt` | For crawlers and AI assistants |
 
 Both tools compare by sheet count by default. Paper area and area × ply are one click away.
 
-Every page ends with the same one-line footer: "Not affiliated with any brand · Sources · Data & API", linking to `/data#sources` and `/data`. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
+The nav has four tabs: Best deal, Roll converter, How it works and Data. Below 375px wide the first two shorten to "Deal" and "Converter" so all four stay on one row. Every page ends with the same one-line footer, "Not affiliated with any brand", with no links. The guides are linked from the `/about` FAQ answers and the 404 page, and listed in the sitemap and llms.txt. Old links to `/about#sources` and `/about#data` land on the matching FAQ answer, which `app.js` opens.
 
 ## Data
 
@@ -23,7 +23,8 @@ Every page ends with the same one-line footer: "Not affiliated with any brand ·
 - When the maker's own site or pack photo (charmin.com, quiltednorthern.com, angelsoft.com and other P&G or Georgia-Pacific pages) gives a number, use that value, and list that page first in the product's `sources`.
 - Retailer listings (Target, Walmart, Kroger and the like) are a fallback for numbers the maker doesn't publish. Say so in the product's `source` note.
 - Label each source link with the numbers it backs, like `charmin.com (sheets, claim)` or `Hannaford (size, pack total)`, so the sources table shows which numbers came from whom.
-- A manufacturer record that current packs contradict isn't used, but stays listed with a note. Today that's P&G SmartLabel's Charmin Ultra Soft Mega, Mega XL and Mega XXL records (224, 336 and 440 sheets, last updated 2022). Current packs print 208, 312 and 416, with square-foot totals that match.
+- The goal is the most accurate current number, so a manufacturer record that current packs contradict isn't used. It stays listed as a source, with a note saying why. Decided October 2026 for P&G SmartLabel's Charmin Ultra Soft Mega, Mega XL and Mega XXL records: they list 224, 336 and 440 sheets and were last updated in 2022, while current packs print 208, 312 and 416, with square-foot totals that match. The site uses 208, 312 and 416.
+- A brand that prints no "= N regular rolls" claim gets `regularId: null`, and its products get `claim: null` (and `size: null` if it has no size names). Its own roll is the unit: the converter shows what one roll equals in the other brands' regular rolls, and the tables say "no claim". Kirkland Signature is the one such brand. Its sheets, sheet size, ply, rolls and pack totals all come from costco.com, and the printed square-foot totals match our math exactly.
 - A number computed from other printed numbers is flagged `derived`. A number we couldn't find printed and borrowed from a sibling product is `estimated`. Both show as tags on the site.
 - Update `checked` in `data.js` and `UPDATED` in `src/site/config.mjs` when you recheck.
 
@@ -128,4 +129,4 @@ To deploy a change, run `npm test` (it rebuilds `dist-inline/index.js` and check
 
 `dist-inline/` is not committed. Build it before deploying.
 
-Not affiliated with Charmin, Quilted Northern or Angel Soft.
+Not affiliated with Charmin, Quilted Northern, Angel Soft, Kirkland Signature or Costco.

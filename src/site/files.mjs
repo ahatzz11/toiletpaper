@@ -60,7 +60,7 @@ Read-only JSON, free to use with a link back. CORS is open.
 
   const llms = `# ${SITE_NAME}
 
-> Free calculators for comparing ${site.brandList} toilet paper packs by price per sheet and per square foot, and for decoding roll names like Mega, Mega XL and Super Mega. Each brand's "= N regular rolls" claim uses its own regular roll (${brands.map((b) => `${b.name} ${b.regular.sheets} sheets`).join(", ")}), so the site compares actual sheets and paper area instead. Sheet counts come from pack labels, checked ${D.checked}.
+> Free calculators for comparing ${site.brandList} toilet paper packs by price per sheet and per square foot, and for decoding roll names like Mega, Mega XL and Super Mega. Each brand's "= N regular rolls" claim uses its own regular roll (${brands.filter((b) => b.regular).map((b) => `${b.name} ${b.regular.sheets} sheets`).join(", ")}${brands.some((b) => !b.regular) ? `; ${brands.filter((b) => !b.regular).map((b) => b.name).join(", ")} makes no such claim` : ""}), so the site compares actual sheets and paper area instead. Sheet counts come from pack labels, checked ${D.checked}.
 
 ## Tools
 
@@ -87,7 +87,7 @@ ${deepLinks}
     D.products.map((p) => {
       const reg = Core.regularOf(p.brand);
       const src = (p.sources || []).find((s) => s.url);
-      return `| ${md(Core.fullName(p))} | ${p.id} | ${p.sheets}${p.flags.sheets ? ` (${p.flags.sheets})` : ""} | ${p.width} × ${p.length}${p.flags.size ? ` (${p.flags.size})` : ""} | ${p.ply} | ${Core.fix(Core.sqFtOf(p), 2)} | ${p.isRegular ? "regular roll" : `= ${p.claim} regular`} | ${Core.fix(p.sheets / reg.sheets, 2)} | ${src ? src.url : md(p.source)} |`;
+      return `| ${md(Core.fullName(p))} | ${p.id} | ${p.sheets}${p.flags.sheets ? ` (${p.flags.sheets})` : ""} | ${p.width} × ${p.length}${p.flags.size ? ` (${p.flags.size})` : ""} | ${p.ply} | ${Core.fix(Core.sqFtOf(p), 2)} | ${p.isRegular ? "regular roll" : p.claim == null ? "no claim" : `= ${p.claim} regular`} | ${reg ? Core.fix(p.sheets / reg.sheets, 2) : "n/a"} | ${src ? src.url : md(p.source)} |`;
     }).join("\n");
 
   const llmsFull = `# ${SITE_NAME}: full reference
@@ -129,15 +129,15 @@ ${deepLinks}
       name: { type: "string", description: "Line and size, without the brand." },
       fullName: { type: "string" },
       line: { type: "string" },
-      size: { type: "string", examples: ["Mega", "Mega XL", "Super Mega"] },
+      size: { type: ["string", "null"], description: "The brand's size name. Null when the brand has none (Kirkland Signature).", examples: ["Mega", "Mega XL", "Super Mega"] },
       isRegularRoll: { type: "boolean", description: "The brand's regular roll, the yardstick for its \"= N regular\" claims. Not a pack you can compare." },
       sheetsPerRoll: { type: "integer" },
       sheetWidthIn: { type: "number" },
       sheetLengthIn: { type: "number" },
       sqFtPerRoll: { type: "number" },
       ply: { type: "integer" },
-      regularRolls: { type: "number", description: "What the pack says one roll equals in regular rolls." },
-      regularRollSheets: { type: "integer", description: "Sheets on this brand's regular roll." },
+      regularRolls: { type: ["number", "null"], description: "What the pack says one roll equals in regular rolls. Null when the brand makes no such claim." },
+      regularRollSheets: { type: ["integer", "null"], description: "Sheets on this brand's regular roll. Null when the brand has none." },
       honestRolls: { type: "number", description: `Square feet per roll ÷ ${D.honestRollSqFt}.` },
       printedTotal: { type: ["object", "null"], properties: { sqFt: { type: "number" }, rolls: { type: "integer" } } },
       estimated: { type: "object", properties: { sheets: { type: ["string", "null"] }, size: { type: ["string", "null"] } } },
@@ -178,7 +178,7 @@ ${deepLinks}
                 properties: {
                   checked: { type: "string" },
                   honestRollSqFt: { type: "number" },
-                  brands: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, maker: { type: "string" }, regularRollId: { type: "string" }, regularRollSheets: { type: "integer" } } } },
+                  brands: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, maker: { type: "string" }, regularRollId: { type: ["string", "null"] }, regularRollSheets: { type: ["integer", "null"] } } } },
                   products: { type: "array", items: { $ref: "#/components/schemas/Product" } },
                 },
               } } },

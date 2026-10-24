@@ -174,15 +174,12 @@ test("sitemap.xml lists every indexed page with lastmod, and nothing else", asyn
   for (const path of INDEXED) assert.equal((await get(path)).status, 200, path);
 });
 
-test("every page's footer is one line with Sources and Data & API", async () => {
+test("every page's footer is just the one line, with no links", async () => {
   for (const path of [...INDEXED, "/nope"]) {
     const footer = pick(await html(path), /<footer[^>]*>([\s\S]*?)<\/footer>/);
-    const lines = [...footer.matchAll(/<(p|ul|ol|div class="(?!wrap)[^"]*")[ >]/g)];
-    assert.equal(lines.filter((m) => m[1] === "p").length, 1, `${path}: one paragraph`);
-    assert.equal(lines.length, 1, `${path}: nothing but that line`);
-    const links = [...footer.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)].map((m) => [m[1], m[2]]);
-    assert.deepEqual(links, [["/data#sources", "Sources"], ["/data", "Data &amp; API"]], path);
-    assert.match(strip(footer), /^Not affiliated with any brand · Sources · Data & API$/, path);
+    assert.equal((footer.match(/<p[ >]/g) || []).length, 1, `${path}: one paragraph`);
+    assert.doesNotMatch(footer, /<(a|ul|ol|li)[ >]/, `${path}: no links or lists`);
+    assert.equal(strip(footer), "Not affiliated with any brand", path);
   }
 });
 
@@ -295,6 +292,47 @@ test("the HTML tables, the API and llms-full.txt agree", async () => {
     assert.ok(cells[1].startsWith(`${p.sheetWidthIn} × ${p.sheetLengthIn} in`), `${p.id}: ${cells[1]}`);
     assert.equal(Number(cells[2]), p.ply, p.id);
   }
+});
+
+// ---------- a brand without "= N regular" claims ----------
+test("Kirkland Signature is a fourth brand with its own roll as the unit", async () => {
+  const kirkland = D.brands.kirkland;
+  assert.equal(kirkland.regularId, null);
+  const rolls = D.products.filter((p) => p.brand === "kirkland");
+  assert.deepEqual(rolls.map((p) => [p.id, p.sheets, p.width, p.length, p.ply, p.defaultRolls, p.claim]), [
+    ["kirkland-signature-bath-tissue", 380, 4.5, 4, 2, 30, null],
+    ["kirkland-signature-ultra-soft-bath-tissue", 231, 4.5, 4, 2, 36, null],
+  ]);
+  for (const p of rolls) {
+    // Costco's printed pack totals match our math exactly.
+    assert.equal(Core.round(Core.sqFtOf(p) * p.printedTotal.rolls, 1), p.printedTotal.sqft, p.id);
+    assert.match(p.sources[0].url, /^https:\/\/www\.costco\.com\//, `${p.id}: Costco's own page comes first`);
+  }
+
+  const api = await json("/api/products");
+  assert.deepEqual(api.brands.find((b) => b.id === "kirkland-signature"), { id: "kirkland-signature", name: "Kirkland Signature", maker: "Costco", regularRollId: null, regularRollSheets: null });
+  const row = api.products.find((p) => p.id === "kirkland-signature-bath-tissue");
+  assert.equal(row.regularRolls, null);
+  assert.equal(row.regularRollSheets, null);
+  assert.equal(row.sqFtPerRoll, 47.5);
+
+  const cmp = await json("/api/compare?a=kirkland-signature-bath-tissue,30,24.99&b=charmin-ultra-soft-mega,6,9.99");
+  assert.equal(cmp.packs[0].totalSheets, 11400);
+
+  const deal = await html("/");
+  assert.match(deal, /<optgroup label="Kirkland Signature"><option value="kirkland-signature-bath-tissue"/);
+  const conv = await html("/convert?roll=kirkland-signature-bath-tissue");
+  const check = strip(pick(conv, /<p class="claim-check" id="conv-claim-check">([\s\S]*?)<\/p>/));
+  assert.match(check, /^Kirkland Signature doesn't print an "= N regular" claim, so its own roll is the unit\. By sheet count one roll is 7\.31 Charmin, 6\.03 Quilted Northern or 4\.75 Angel Soft regular rolls\.$/);
+  // Only brands with a regular roll get an "equals" tile.
+  assert.equal((conv.match(/class="eq-tile /g) || []).length, Object.values(D.brands).filter((b) => b.regularId).length);
+
+  for (const path of ["/", "/convert", "/about", "/data", "/cheapest-toilet-paper-per-sheet", "/llms.txt", "/llms-full.txt"]) {
+    assert.ok((await html(path)).includes("Kirkland Signature"), `${path} mentions Kirkland Signature`);
+  }
+  // Kirkland sells no Mega rolls, so the Mega guide doesn't claim it does.
+  const mega = await html("/how-many-sheets-in-a-mega-roll");
+  assert.ok(!pick(mega, /<meta name="description" content="([^"]+)">/).includes("Kirkland"));
 });
 
 test("GET /api/compare does the math", async () => {

@@ -27,8 +27,7 @@ const PAGES = [
   { path: "/", title: "Which toilet paper pack is the better deal? | Toilet Paper Math" },
   { path: "/convert", title: "Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math" },
   { path: "/about", title: "How it works: why sheets beat rolls | Toilet Paper Math" },
-  // Low-key on purpose: linked from the footer, not the nav.
-  { path: "/data", title: "Data &amp; API: every roll, its sources and a JSON API | Toilet Paper Math", nav: false },
+  { path: "/data", title: "Data &amp; API: every roll, its sources and a JSON API | Toilet Paper Math" },
 ];
 const GUIDES = [
   { path: "/charmin-mega-vs-quilted-northern-mega" },
@@ -51,10 +50,10 @@ for (const page of PAGES) {
     assert.ok(pick(html, /<meta name="description" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:title" content="([^"]+)">/));
     assert.ok(pick(html, /<meta property="og:description" content="([^"]+)">/));
-    // Every page links to every page here, and nav pages mark themselves as current.
-    for (const other of PAGES) assert.ok(html.includes(`<a href="${other.path}"`), `${page.path} links to ${other.path}`);
-    if (page.nav !== false) assert.ok(html.includes(`<a href="${page.path}" aria-current="page">`));
-    else assert.doesNotMatch(html, /<a [^>]*aria-current/);
+    // Every page links to every tab in the nav, and marks itself as current.
+    const nav = pick(html, /<nav class="site-nav"[^>]*>([\s\S]*?)<\/nav>/);
+    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), PAGES.map((p) => p.path), page.path);
+    assert.deepEqual([...nav.matchAll(/<a href="([^"]+)" aria-current="page">/g)].map((m) => m[1]), [page.path]);
   });
 }
 

@@ -7,14 +7,19 @@ import { TOOL_END, TOOL_START, esc } from "./layout.mjs";
 export function buildSite(D, Core) {
   const { byId, fix, pct, sqFtOf, fullName, shortName, sizeText, tag, sourceLinks } = Core;
   const brandKeys = Object.keys(D.brands);
-  const brands = brandKeys.map((k) => ({ key: k, ...D.brands[k], regular: byId[D.brands[k].regularId] }));
+  const brands = brandKeys.map((k) => ({ key: k, ...D.brands[k], regular: Core.regularOf(k) }));
+  // Brands with an "= N regular rolls" yardstick, and the ones without (their own roll is the unit).
+  const claimBrands = brands.filter((b) => b.regular);
+  const noClaimBrands = brands.filter((b) => !b.regular);
   const brandList = brands.map((b) => b.name).join(", ").replace(/, ([^,]*)$/, " or $1");
   const brandAnd = brands.map((b) => b.name).join(", ").replace(/, ([^,]*)$/, " and $1");
   const listJoin = (items) => items.length < 3 ? items.join(" and ") : items.slice(0, -1).join(", ") + " and " + items.at(-1);
+  const noClaimNote = noClaimBrands.length ? ` ${listJoin(noClaimBrands.map((b) => esc(b.name)))} doesn't make that claim at all and just prints the sheet count.` : "";
   const products = D.products;
   const buyable = products.filter((p) => !p.isRegular);
   const ofBrand = (b) => products.filter((p) => p.brand === b);
-  const regularRolls = (p) => p.sheets / byId[D.brands[p.brand].regularId].sheets;
+  const regularRolls = (p) => Core.regularOf(p.brand) ? fix(p.sheets / Core.regularOf(p.brand).sheets, 2) : "n/a";
+  const packSays = (p) => p.isRegular ? "the yardstick" : p.claim == null ? "no claim" : `= ${p.claim} regular`;
   const strip = (html) => html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
   const convLink = (p) => `/convert?roll=${p.id}`;
   const dealLink = (packs) => "/?" + packs.map((p, i) => `${Core.PARAMS[i]}=${p.id},${p.defaultRolls},`).join("&");
@@ -36,8 +41,8 @@ export function buildSite(D, Core) {
         `<td class="num">${p.sheets}${p.flags.sheets ? tag(p.flags.sheets) : ""}</td>` +
         `<td class="num">${sizeText(p)}${p.flags.size ? tag(p.flags.size) : ""}</td>` +
         `<td class="num">${p.ply}</td><td class="num">${fix(sqFtOf(p), 1)}</td>` +
-        `<td class="num">${p.isRegular ? "the yardstick" : `= ${p.claim} regular`}</td>` +
-        `<td class="num">${fix(regularRolls(p), 2)}</td></tr>`;
+        `<td class="num">${packSays(p)}</td>` +
+        `<td class="num">${regularRolls(p)}</td></tr>`;
     }
     return html + "</tbody></table></div>";
   }
@@ -56,7 +61,7 @@ export function buildSite(D, Core) {
         html += `<tr class="${p.brand}"><td class="brand-cell">${esc(p.name)}</td>` +
           `<td class="num">${p.sheets}${p.flags.sheets ? tag(p.flags.sheets) : ""}</td>` +
           `<td class="num">${p.width} × ${p.length}${p.flags.size ? tag(p.flags.size) : ""}</td>` +
-          `<td class="num">${p.ply}</td><td class="num">${p.isRegular ? "the yardstick" : `= ${p.claim} regular`}</td>` +
+          `<td class="num">${p.ply}</td><td class="num">${packSays(p)}</td>` +
           `<td class="num">${fix(sq, 2)}</td><td>${printed}</td><td>${sourceLinks(p)}</td></tr>`;
       }
     }
@@ -88,13 +93,16 @@ export function buildSite(D, Core) {
         const m = megas.filter((p) => p.brand === b.key);
         const xl = products.filter((p) => p.brand === b.key && p.size === "Mega XL");
         return m.length ? `${b.name} Mega has ${range(m)} sheets${xl.length ? ` and Mega XL has ${range(xl)}` : ""}.` : "";
-      }).filter(Boolean).join(" ")} At Charmin, Mega XL replaced Super Mega. Quilted Northern still calls its bigger roll Super Mega. See <a href="/how-many-sheets-in-a-mega-roll">every Mega size</a>.`,
+      }).filter(Boolean).join(" ")}${(() => {
+        const plain = brands.filter((b) => !products.some((p) => p.brand === b.key && /Mega/.test(p.size)));
+        return plain.length ? ` ${listJoin(plain.map((b) => esc(b.name)))} skips the size names and just prints the sheet count.` : "";
+      })()} At Charmin, Mega XL replaced Super Mega. Quilted Northern still calls its bigger roll Super Mega. See <a href="/how-many-sheets-in-a-mega-roll">every Mega size</a>.`,
     },
     {
       id: "regular-rolls",
       q: "Why does \"= 4 regular rolls\" differ by brand?",
-      html: `Each brand compares its big rolls to its own regular roll, and the brands don't agree on what a regular roll is. ${brands.map((b) =>
-        `${b.name}'s has ${b.regular.sheets} sheets`).join(", ")}. So "= 4 regular rolls" means ${listJoin(brands.map((b) => `${b.regular.sheets * 4} sheets at ${b.name}`))}. <a href="/charmin-mega-vs-quilted-northern-mega">Charmin Mega vs Quilted Northern Mega</a> goes through one example.`,
+      html: `Each brand compares its big rolls to its own regular roll, and the brands don't agree on what a regular roll is. ${claimBrands.map((b) =>
+        `${b.name}'s has ${b.regular.sheets} sheets`).join(", ")}. So "= 4 regular rolls" means ${listJoin(claimBrands.map((b) => `${b.regular.sheets * 4} sheets at ${b.name}`))}.${noClaimNote} <a href="/charmin-mega-vs-quilted-northern-mega">Charmin Mega vs Quilted Northern Mega</a> goes through one example.`,
     },
     {
       id: "ply",
@@ -111,7 +119,10 @@ export function buildSite(D, Core) {
           if (!sizes.has(key)) sizes.set(key, []);
           sizes.get(key).push(p.size);
         }
-        return `${b.name}: ${[...sizes].map(([s, names]) => `${s} (${[...new Set(names)].join(", ")})`).join("; ")}.`;
+        return `${b.name}: ${[...sizes].map(([s, names]) => {
+          const named = [...new Set(names.filter(Boolean))];
+          return named.length ? `${s} (${named.join(", ")})` : s;
+        }).join("; ")}.`;
       }).join(" ")}`,
     },
     {
@@ -122,7 +133,10 @@ export function buildSite(D, Core) {
     {
       id: "cheapest",
       q: "Which brand is cheapest?",
-      html: `Whichever is on sale. Prices change every week, so divide each pack's price by its total sheets (rolls × sheets per roll) and the lower number wins. <a href="/cheapest-toilet-paper-per-sheet">How to find the cheapest per sheet</a> walks through it, and <a href="/">the calculator</a> does it for you.`,
+      html: `Whichever is on sale. Prices change every week, so divide each pack's price by its total sheets (rolls × sheets per roll) and the lower number wins. ${noClaimBrands.map((b) => {
+        const packs = [...new Set(buyable.filter((p) => p.brand === b.key).map((p) => p.defaultRolls))].sort((x, y) => x - y);
+        return `${esc(b.name)} comes in big ${listJoin(packs.map(String))}-roll packs, so compare it per sheet, not per pack. `;
+      }).join("")}<a href="/cheapest-toilet-paper-per-sheet">How to find the cheapest per sheet</a> walks through it, and <a href="/">the calculator</a> does it for you.`,
     },
     {
       id: "honest-roll",
@@ -158,7 +172,7 @@ export function buildSite(D, Core) {
     },
     {
       title: "Regular isn't regular",
-      body: `Each brand's regular roll is different: ${listJoin(brands.map((b) => `${b.regular.sheets} sheets at ${esc(b.name)}`))}. So <span class="nowrap">"= 4 regular rolls"</span> means ${brands.map((b) => b.regular.sheets * 4).join(", ").replace(/, ([^,]*)$/, " or $1")} sheets, depending on whose regular.`,
+      body: `Each brand's regular roll is different: ${listJoin(claimBrands.map((b) => `${b.regular.sheets} sheets at ${esc(b.name)}`))}. So <span class="nowrap">"= 4 regular rolls"</span> means ${claimBrands.map((b) => b.regular.sheets * 4).join(", ").replace(/, ([^,]*)$/, " or $1")} sheets, depending on whose regular.`,
     },
     {
       title: "Sheets don't lie",
@@ -169,7 +183,7 @@ export function buildSite(D, Core) {
     `<article class="why-card"><h3>${esc(c.title)}</h3><p>${c.body}</p></article>`,
   ).join("") + "</div>";
 
-  const regularsSentence = listJoin(brands.map((b) => `${b.name}'s is ${fix(sqFtOf(b.regular), 2)} sq ft`));
+  const regularsSentence = listJoin(claimBrands.map((b) => `${b.name}'s is ${fix(sqFtOf(b.regular), 2)} sq ft`));
   const exampleState = Core.defaultDeal();
   const apiExample = `/api/compare?mode=sheets&a=${exampleState.packs.map((p, i) => `${i ? Core.PARAMS[i] + "=" : ""}${p.productId},${p.rolls},${p.price}`).join("&")}`;
 
@@ -204,7 +218,7 @@ export function buildSite(D, Core) {
     crumbs: [{ name: "Roll converter", path: "/convert" }],
     title: "Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math",
     ogTitle: "Roll converter: what Mega, Mega XL and Super Mega really mean",
-    description: `See how many sheets and square feet are on every ${brandList} roll, and what one roll equals in each brand's regular rolls.`,
+    description: `Sheets and square feet on every ${brandList} roll, and what one roll equals in each brand's regular rolls.`,
     tool: "convert",
     body: `<div class="page-head">
       <h1>Roll converter</h1>
@@ -215,7 +229,7 @@ export function buildSite(D, Core) {
       <summary>How this works</summary>
       <ul>
         <li><strong>Sheets</strong> compares sheets per roll. <strong>Paper area</strong> compares square feet (sheets × sheet width × sheet length). <strong>Area × ply</strong> also counts a 3-ply square as 1.5 times a 2-ply square.</li>
-        <li>Each brand measures "= N regular rolls" against its own regular roll: ${listJoin(brands.map((b) => `${b.regular.sheets} sheets at ${esc(b.name)}`))}.</li>
+        <li>Each brand measures "= N regular rolls" against its own regular roll: ${listJoin(claimBrands.map((b) => `${b.regular.sheets} sheets at ${esc(b.name)}`))}.${noClaimNote}</li>
         <li>An <strong>Honest Roll</strong> is ${D.honestRollSqFt} square feet of paper, about one regular roll.</li>
         <li>Values tagged <span class="tag tag-derived">derived</span> were computed from other printed numbers. <span class="tag tag-estimated">estimated</span> means not found printed. <a href="/data#sources">Sources and notes</a>.</li>
       </ul>
@@ -249,11 +263,11 @@ export function buildSite(D, Core) {
   const apiOutput = JSON.stringify(Core.compareJSON(Core.parseDeal(apiQuery, true).state), null, 2);
   const shareExample = ORIGIN + Core.dealLink({ ...exampleState, example: false }).slice(ORIGIN.length);
   pages.push({
-    key: "data", path: "/data", mainClass: "page-data", showCrumbs: true,
+    key: "data", path: "/data", nav: "data", mainClass: "page-data", showCrumbs: true,
     crumbs: [{ name: "Data & API", path: "/data" }],
     title: "Data & API: every roll, its sources and a JSON API | Toilet Paper Math",
     ogTitle: "Toilet Paper Math: data & API",
-    description: `Sheet counts, sheet sizes and sources for every ${brandList} roll, plus a free JSON API, the link format and files for AI assistants.`,
+    description: `Sheets, sheet sizes and sources for every ${brandList} roll, plus a free JSON API and files for AI assistants.`,
     body: `<div class="page-head">
       <h1>Data &amp; API</h1>
       <p class="lede">The numbers behind the calculators. Free to use; please link back to toiletpaper.app.</p>
@@ -347,7 +361,7 @@ export function buildSite(D, Core) {
     crumbs: [{ name: "How many sheets in a Mega roll?", path: "/how-many-sheets-in-a-mega-roll" }],
     title: "How many sheets are in a Mega roll? Every brand and size | Toilet Paper Math",
     ogTitle: "How many sheets are in a Mega roll?",
-    description: `Sheets per roll for every Mega, Mega XL, Mega XXL and Super Mega roll from ${brandAnd}, with sheet sizes and regular-roll equivalents.`,
+    description: `Sheets per roll for every Mega, Mega XL, Mega XXL and Super Mega roll from ${listJoin(brands.filter((b) => megaFamily.some((p) => p.brand === b.key)).map((b) => b.name))}, with sheet sizes and regular-roll equivalents.`,
     body: `<div class="page-head prose">
       <h1>How many sheets are in a Mega roll?</h1>
       <p class="answer">${brands.map((b) => {
@@ -392,7 +406,7 @@ export function buildSite(D, Core) {
       <ul>
         <li>Store unit prices use different units: per roll, per 100 sheets or per square foot, sometimes on the same shelf.</li>
         <li>"Per roll" hides the roll size. A Mega roll from one brand isn't a Mega roll from another.</li>
-        <li>"= N regular rolls" uses each brand's own regular roll, and they differ (${listJoin(brands.map((b) => `${b.regular.sheets} sheets at ${esc(b.name)}`))}).</li>
+        <li>"= N regular rolls" uses each brand's own regular roll, and they differ (${listJoin(claimBrands.map((b) => `${b.regular.sheets} sheets at ${esc(b.name)}`))}).${noClaimNote}</li>
       </ul>
       <h2>Per sheet or per square foot?</h2>
       <p>Per sheet is the simplest. When sheet sizes differ, price per square foot is fairer. <a href="/">The calculator</a> shows both, and Area × ply if you care about thickness.</p>

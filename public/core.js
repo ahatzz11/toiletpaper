@@ -9,6 +9,8 @@ var TPCore = (function (D) {
   var byId = {};
   PRODUCTS.forEach(function (p) { byId[p.id] = p; });
   var BRAND_KEYS = Object.keys(D.brands);
+  // Brands with their own "= N regular rolls" yardstick. Other brands are measured in these.
+  var CLAIM_BRANDS = BRAND_KEYS.filter(function (b) { return D.brands[b].regularId; });
   var MAX_PACKS = 8;
   var LETTERS = "ABCDEFGH";
   var PARAMS = "abcdefgh";
@@ -17,7 +19,8 @@ var TPCore = (function (D) {
   function sqFtOf(spec) { return (spec.sheets * spec.width * spec.length) / 144; }
   function plyFtOf(spec) { return sqFtOf(spec) * spec.ply; }
   function honestOf(spec) { return sqFtOf(spec) / D.honestRollSqFt; }
-  function regularOf(brand) { return byId[D.brands[brand].regularId]; }
+  // A brand's "= N regular rolls" yardstick. Null for a brand that makes no such claim (Kirkland).
+  function regularOf(brand) { return D.brands[brand].regularId ? byId[D.brands[brand].regularId] : null; }
 
   // The three ways to compare. Sheets is the default everywhere.
   var MODES = {
@@ -439,7 +442,7 @@ var TPCore = (function (D) {
       ["Sheet size", sizeText(p) + (p.flags.size ? tag(p.flags.size) : "")],
       ["Ply", p.ply + "-ply"],
       mode === "areaply" ? ["Sq ft × ply", fix(plyFtOf(p), 2), true] : ["Sq ft per roll", fix(sqFtOf(p), 2), mode === "area"],
-      ["Pack says", p.isRegular ? "= 1 (yardstick)" : "= " + p.claim + " regular"],
+      ["Pack says", p.isRegular ? "= 1 (yardstick)" : p.claim == null ? "no regular-roll claim" : "= " + p.claim + " regular"],
       ["Honest Rolls", fix(honestOf(p), 2)],
     ];
     return '<p class="brand-name-small">' + esc(brandName(p)) + "</p>" +
@@ -463,7 +466,7 @@ var TPCore = (function (D) {
   function converterEqualsHTML(state) {
     var p = byId[state.roll];
     var m = metricOf(p, state.mode);
-    return BRAND_KEYS.map(function (b) {
+    return CLAIM_BRANDS.map(function (b) {
       return '<div class="eq-tile ' + b + '"><span class="eq-num">' + fix(m / metricOf(regularOf(b), state.mode), 2) +
         '</span><span class="eq-label">' + esc(D.brands[b].name) + " regular rolls</span></div>";
     }).join("");
@@ -475,14 +478,18 @@ var TPCore = (function (D) {
       return "This is " + esc(brandName(p)) + "'s yardstick. Every \"= N regular\" on a " + esc(brandName(p)) + " pack counts these.";
     }
     var m = metricOf(p, state.mode);
+    var inRegulars = CLAIM_BRANDS.map(function (b) { return fix(m / metricOf(regularOf(b), state.mode), 2) + " " + esc(D.brands[b].name); }).join(", ").replace(/, ([^,]*)$/, " or $1");
+    if (p.claim == null) {
+      return esc(brandName(p)) + " doesn't print an \"= N regular\" claim, so its own roll is the unit. By " + MODES[state.mode].name +
+        " one roll is " + inRegulars + " regular rolls.";
+    }
     var own = m / metricOf(regularOf(p.brand), state.mode);
     var verdict;
     if (Math.abs(own / p.claim - 1) < 0.03) verdict = "That matches its own brand's regular roll.";
     else if (own > p.claim) verdict = "That's more than the pack claims.";
     else verdict = "That's less than the pack claims.";
     return 'The pack says <strong>"= ' + p.claim + ' regular"</strong>. By ' + MODES[state.mode].name + " it's " +
-      BRAND_KEYS.map(function (b) { return fix(m / metricOf(regularOf(b), state.mode), 2) + " " + esc(D.brands[b].name); }).join(", ").replace(/, ([^,]*)$/, " or $1") +
-      " regular rolls. " + verdict;
+      inRegulars + " regular rolls. " + verdict;
   }
 
   function chartRowsHTML(state) {
@@ -554,8 +561,8 @@ var TPCore = (function (D) {
       sheetLengthIn: p.length,
       sqFtPerRoll: round(sqFtOf(p), 2),
       ply: p.ply,
-      regularRolls: p.claim,
-      regularRollSheets: reg.sheets,
+      regularRolls: p.claim == null ? null : p.claim,
+      regularRollSheets: reg ? reg.sheets : null,
       honestRolls: round(honestOf(p), 2),
       printedTotal: p.printedTotal ? { sqFt: p.printedTotal.sqft, rolls: p.printedTotal.rolls } : null,
       estimated: { sheets: p.flags.sheets || null, size: p.flags.size || null },
@@ -574,7 +581,7 @@ var TPCore = (function (D) {
       honestRollSqFt: D.honestRollSqFt,
       brands: BRAND_KEYS.map(function (b) {
         var br = D.brands[b];
-        return { id: br.slug, name: br.name, maker: br.maker, regularRollId: br.regularId, regularRollSheets: byId[br.regularId].sheets };
+        return { id: br.slug, name: br.name, maker: br.maker, regularRollId: br.regularId || null, regularRollSheets: br.regularId ? byId[br.regularId].sheets : null };
       }),
       products: PRODUCTS.map(productJSON),
     };
