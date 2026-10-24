@@ -14,20 +14,24 @@ const pick = (html, re) => (re.exec(html) || [])[1];
 const pubBytes = (file) => readFile(new URL(`../public/${file}`, import.meta.url));
 const meta = (html, key) => pick(html, new RegExp(`<meta (?:property|name)="${key.replace(/[.:]/g, "\\$&")}" content="([^"]*)">`));
 const hash10 = (text) => createHash("sha256").update(text).digest("hex").slice(0, 10);
-// The built HTML is the source HTML with /styles.css pointed at /styles.<hash>.css and so on.
-const unhash = (html) => html.replace(/(\/[a-z]+)\.[0-9a-f]{10}(\.(?:css|js|png|mp4))"/g, '$1$2"');
 const assetRefs = (html) => [...html.matchAll(/\s(?:href|src)="([^"]*\.(?:css|m?js))"/g)].map((m) => m[1]);
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const ASSETS = [
   { file: "styles.css", type: "text/css; charset=utf-8" },
   { file: "data.js", type: "text/javascript; charset=utf-8" },
+  { file: "core.js", type: "text/javascript; charset=utf-8" },
   { file: "app.js", type: "text/javascript; charset=utf-8" },
 ];
 
 const PAGES = [
-  { path: "/", file: "index.html", title: "Which toilet paper pack is the better deal? | Toilet Paper Math" },
-  { path: "/convert", file: "convert/index.html", title: "Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math" },
-  { path: "/about", file: "about/index.html", title: "How it works and sources | Toilet Paper Math" },
+  { path: "/", title: "Which toilet paper pack is the better deal? | Toilet Paper Math" },
+  { path: "/convert", title: "Roll converter: what Mega, Mega XL and Super Mega really mean | Toilet Paper Math" },
+  { path: "/about", title: "How it works and sources | Toilet Paper Math" },
+];
+const GUIDES = [
+  { path: "/charmin-mega-vs-quilted-northern-mega" },
+  { path: "/how-many-sheets-in-a-mega-roll" },
+  { path: "/cheapest-toilet-paper-per-sheet" },
 ];
 
 for (const page of PAGES) {
@@ -38,7 +42,6 @@ for (const page of PAGES) {
     assert.equal(res.headers.get("cache-control"), "no-cache");
     assert.ok(res.headers.get("etag"));
     const html = await res.text();
-    assert.equal(unhash(html), await pub(page.file));
     assert.equal(pick(html, /<title>([^<]*)<\/title>/), page.title);
     const url = `https://toiletpaper.app${page.path}`;
     assert.equal(pick(html, /<link rel="canonical" href="([^"]*)">/), url);
@@ -52,28 +55,29 @@ for (const page of PAGES) {
   });
 }
 
-test("trailing-slash routes also return 200", async () => {
-  for (const path of ["/convert/", "/about/"]) {
+test("trailing-slash routes 301 to the clean path", async () => {
+  const cases = [["/convert/", "/convert"], ["/about/?x=1", "/about?x=1"], ["/about//", "/about"], [GUIDES[0].path + "/", GUIDES[0].path]];
+  for (const [path, location] of cases) {
     const res = await get(path);
-    assert.equal(res.status, 200, path);
-    assert.match(await res.text(), /<title>/);
+    assert.equal(res.status, 301, path);
+    assert.equal(res.headers.get("location"), location, path);
   }
+  // Leading slashes collapse, so this can't redirect to another site.
+  const res = await get("//evil.example/");
+  assert.notEqual(res.headers.get("location"), "//evil.example");
+  assert.equal(res.status, 404);
 });
 
 test("sheet count is the default comparison on both tools", async () => {
   const deal = await (await get("/")).text();
   assert.match(deal, /<input type="radio" name="judge" value="sheets" checked>/);
-  assert.doesNotMatch(deal, /name="judge" value="(area|ply)" checked/);
+  assert.doesNotMatch(deal, /name="judge" value="(area|areaply)" checked/);
   const convert = await (await get("/convert")).text();
   assert.match(convert, /<input type="radio" name="conv-mode" value="sheets" checked>/);
-  assert.doesNotMatch(convert, /name="conv-mode" value="(area|ply)" checked/);
-  // app.js reads the checked radio and falls back to sheets.
-  const app = await (await get("/app.js")).text();
-  assert.match(app, /checkedValue\("judge", "sheets"\)/);
-  assert.match(app, /checkedValue\("conv-mode", "sheets"\)/);
+  assert.doesNotMatch(convert, /name="conv-mode" value="(area|areaply)" checked/);
 });
 
-const HTML_PAGES = [...PAGES, { path: "/nope", file: "404.html" }];
+const HTML_PAGES = [...PAGES, ...GUIDES, { path: "/nope" }];
 
 test("every page references only content-hashed CSS and JS, in the source order", async () => {
   for (const page of HTML_PAGES) {
@@ -81,7 +85,7 @@ test("every page references only content-hashed CSS and JS, in the source order"
     const expected = ASSETS.map(async (a) => `/${a.file.replace(/\.(css|js)$/, `.${hash10(await pub(a.file))}.$1`)}`);
     const refs = assetRefs(html);
     assert.deepEqual(refs, await Promise.all(expected), page.path);
-    // Nothing still points at a plain /styles.css, /app.js or /data.js.
+    // Nothing still points at a plain /styles.css, /app.js, /core.js or /data.js.
     for (const a of ASSETS) assert.ok(!html.includes(`"/${a.file}"`), `${page.path} still references /${a.file}`);
   }
 });
@@ -148,8 +152,8 @@ test("every page sizes the mascot and has fallback header styles without styles.
     fallback ??= style;
     assert.equal(style, fallback, `${page.path} has the same fallback styles as the other pages`);
   }
-  // The background rolls built by app.js carry their own size too.
-  assert.match(await pub("app.js"), /<svg width="150" height="70" viewBox="0 0 170 80"/);
+  // The background rolls built from core.js carry their own size too.
+  assert.match(await pub("core.js"), /<svg class="spool" width="48" height="48" viewBox="0 0 48 48"/);
 });
 
 const MEDIA = [
@@ -264,7 +268,7 @@ test("index file paths redirect to their clean route", async () => {
 });
 
 test("unknown paths serve the 404 page", async () => {
-  for (const path of ["/nope", "/convert/nope", "/deal/x", "/404.html", "/%E0%A4%A"]) {
+  for (const path of ["/nope", "/convert/nope", "/deal/x", "/404", "/404.html", "/index.html/x", "/%E0%A4%A"]) {
     const res = await get(path);
     assert.equal(res.status, 404, path);
     assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");

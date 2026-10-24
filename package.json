@@ -2,13 +2,15 @@
   "name": "toiletpaper",
   "private": true,
   "type": "module",
-  "description": "Toilet Paper Math, a static site at toiletpaper.app. A small Worker sends www to the apex.",
+  "description": "Toilet Paper Math, a static site at toiletpaper.app, served by one Worker with every file inlined.",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "build:inline": "node scripts/build-inline.mjs",
+    "serve": "node scripts/serve.mjs",
     "test": "npm run build:inline && node --test test/",
-    "media": "node scripts/make-share-media.mjs"
+    "media": "node scripts/make-share-media.mjs",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^2.0.0-beta.v.1",

@@ -1,7 +1,7 @@
 import { defineConfig } from "cf/config";
 
 // Matches what is live: one Worker, "toiletpaper", on the Personal account. Its code is
-// dist-inline/index.js, a single ES module with every file in public/ inlined. It has no
+// dist-inline/index.js, a single ES module with the whole site inlined. It has no
 // bindings and no static-assets upload, and it sends www.toiletpaper.app to the apex itself.
 //
 // `npm run build:inline` writes dist-inline/index.js. Deploy it either by uploading that file

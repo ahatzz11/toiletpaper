@@ -1,12 +1,24 @@
-// Builds dist-inline/index.js: one ES module Worker with every file in public/ inlined.
-// It needs no bindings and no asset upload, so it can be deployed as a plain Worker script.
+// Builds dist-inline/index.js: one ES module Worker that serves the whole site with no bindings
+// and no asset upload, so it can be deployed as a plain Worker script.
 //
 //   npm run build:inline
+//
+// What goes in:
+//   public/            static files (styles, browser scripts, media, icons), inlined as they are
+//   src/site/          the HTML pages and generated files (robots.txt, sitemap.xml, llms.txt,
+//                      openapi.json, /api/products, ...), rendered here with public/data.js
+//                      and public/core.js, the same code the browser runs
+//   src/worker.js      request handling, pasted in after data.js, core.js and the file table
 
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { INDEXNOW_KEY, ORIGIN } from "../src/site/config.mjs";
+import { buildFiles } from "../src/site/files.mjs";
+import { TOOL_END, TOOL_START, renderPage } from "../src/site/layout.mjs";
+import { loadCore } from "../src/site/load.mjs";
+import { buildSite } from "../src/site/pages.mjs";
 // The www rule lives in src/index.ts. Its source is copied into the output below.
 import { APEX, redirectTarget } from "../src/index.ts";
 
@@ -37,15 +49,25 @@ const TYPES = {
 };
 const TEXT = new Set([".html", ".css", ".js", ".mjs", ".json", ".txt", ".xml", ".webmanifest", ".svg"]);
 
-// CSS, JS and media also get a content-hashed path, /styles.<hash>.css, and the HTML points only
-// at that. Those paths never change content, so browsers can keep them for a year. Everything
-// else, HTML included, revalidates with its ETag on every load, so a deploy can never pair new
-// HTML with old CSS or JS from a browser cache.
-const FINGERPRINT = new Set([".css", ".js", ".mjs", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4"]);
+// CSS, JS, images and media also get a content-hashed path, /styles.<hash>.css, and the HTML
+// points only at that. Those paths never change content, so browsers keep them for a year.
+const FINGERPRINT = new Set([".css", ".js", ".mjs", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".svg"]);
 const FINGERPRINT_EXT = [...FINGERPRINT].map((e) => e.slice(1)).join("|");
 const HASH_LENGTH = 10;
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const REVALIDATE = "no-cache";
+const HOUR = "public, max-age=3600";
+const DAY = "public, max-age=86400";
+
+// Cache-Control for each file's plain path. HTML and anything the HTML links by plain path
+// revalidate on every load, so a deploy never pairs new HTML with old CSS or JS. Files that
+// crawlers and browsers fetch by a fixed name are cached for an hour or a day.
+function plainCache(path) {
+  if (path === "/favicon.ico" || path === "/apple-touch-icon.png") return DAY;
+  if (/^\/(?:robots\.txt|sitemap\.xml|llms(?:-full)?\.txt|openapi\.json|site\.webmanifest|api\/products)$/.test(path)) return HOUR;
+  if (path === `/${INDEXNOW_KEY}.txt`) return HOUR;
+  return REVALIDATE;
+}
 
 async function listFiles(dir) {
   const out = [];
@@ -60,14 +82,16 @@ async function listFiles(dir) {
 
 const sha256 = (bytes) => createHash("sha256").update(bytes);
 
+// ---------- static files ----------
 const files = [];
 for (const file of await listFiles(publicDir)) {
   const ext = extname(file).toLowerCase();
+  if (ext === ".html") throw new Error(`${relative(root, file)}: pages are generated from src/site/pages.mjs, not kept in public/`);
   files.push({ ext, path: "/" + relative(publicDir, file).split(sep).join("/"), bytes: await readFile(file) });
 }
-
-if (!files.some((f) => f.path === "/index.html")) throw new Error("public/index.html is missing");
-if (!files.some((f) => f.path === "/404.html")) throw new Error("public/404.html is missing");
+for (const need of ["/data.js", "/core.js", "/app.js", "/styles.css", "/icon.svg", "/favicon.ico", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"]) {
+  if (!files.some((f) => f.path === need)) throw new Error(`public${need} is missing (icons come from npm run media)`);
+}
 
 // "/styles.css" -> "/styles.0123456789.css"
 const fingerprinted = new Map();
@@ -76,53 +100,104 @@ for (const f of files) {
   const hash = sha256(f.bytes).digest("hex").slice(0, HASH_LENGTH);
   fingerprinted.set(f.path, f.path.slice(0, -f.ext.length) + "." + hash + f.ext);
 }
+const assetUrl = (path) => {
+  const hashed = fingerprinted.get(path);
+  if (!hashed) throw new Error(`${path} is not a fingerprinted file in public/`);
+  return hashed;
+};
 
-// Point every HTML page at the hashed paths, in href, src and meta content (where share tags use
+// ---------- pages and generated files ----------
+const { D, Core, dataSource, coreSource } = loadCore(root);
+const site = buildSite(D, Core);
+const ctx = { siteDescription: site.siteDescription, footerLinks: site.footerLinks, checked: D.checked, brandList: site.brandList };
+
+// Point every page at the hashed paths, in href, src and meta content (where share tags use
 // https://toiletpaper.app/media/share.png). A reference to one of these file types on this site
-// that can't be rewritten fails the build.
-const ORIGIN = `https://${APEX}`;
+// that isn't a file in public/ fails the build.
 const ASSET_URL = new RegExp(`\\.(?:${FINGERPRINT_EXT})$`, "i");
-for (const f of files) {
-  if (f.ext !== ".html") continue;
-  const html = f.bytes.toString("utf8").replace(/(\s(?:href|src|content)=")([^"]*)"/g, (match, attr, url) => {
+function rewrite(html, where) {
+  return html.replace(/(\s(?:href|src|content)=")([^"]*)"/g, (match, attr, url) => {
     const local = url.startsWith(ORIGIN + "/") ? url.slice(ORIGIN.length) : url;
     if (!ASSET_URL.test(local) || /^[a-z][a-z0-9+.-]*:/i.test(local)) return match; // not an asset, or another site
     const hashed = fingerprinted.get(local);
-    if (!hashed) throw new Error(`${f.path} references ${url}, which is not a file in public/ (use a path like /app.js)`);
+    if (!hashed) throw new Error(`${where} references ${url}, which is not a file in public/ (use a path like /app.js)`);
     return attr + url.slice(0, url.length - local.length) + hashed + '"';
   });
-  f.bytes = Buffer.from(html, "utf8");
 }
 
+const pages = [];
+let notFound = null;
+for (const page of site.pages) {
+  const html = Buffer.from(rewrite(renderPage(page, ctx), page.path), "utf8");
+  const f = { ext: ".html", path: page.path, bytes: html, tool: page.tool || null };
+  if (page.key === "notfound") notFound = f;
+  else pages.push(f);
+}
+const generated = buildFiles(D, Core, site, assetUrl).map((g) => ({
+  ext: extname(g.path) || ".json",
+  path: g.path,
+  type: g.type,
+  bytes: Buffer.from(g.text, "utf8"),
+}));
+
+const seen = new Set();
+for (const f of [...files, ...pages, ...generated]) {
+  if (seen.has(f.path)) throw new Error(`${f.path} is defined twice`);
+  seen.add(f.path);
+}
+
+// ---------- the file table ----------
 const bodies = [];
-const entries = [];
-for (const f of files) {
+function entry(f, path, cache) {
+  return { path, cache, ...f.shared };
+}
+function share(f) {
   const isText = TEXT.has(f.ext);
-  const body = bodies.push(isText ? f.bytes.toString("utf8") : f.bytes.toString("base64")) - 1;
-  const shared = {
-    type: TYPES[f.ext] ?? "application/octet-stream",
+  f.shared = {
+    type: f.type ?? TYPES[f.ext] ?? "application/octet-stream",
     // HTML gets a weak ETag: Cloudflare's edge drops strong ETags from HTML it may rewrite, but keeps weak ones.
     etag: `${f.ext === ".html" ? "W/" : ""}"${sha256(f.bytes).digest("base64url").slice(0, 27)}"`,
     // Text is embedded as a JSON string, binary as base64.
     base64: !isText,
-    body,
+    body: bodies.push(isText ? f.bytes.toString("utf8") : f.bytes.toString("base64")) - 1,
+    tool: f.tool ?? null,
   };
-  // The plain path still works (old cached HTML asks for /styles.css), but it always revalidates.
-  entries.push({ ...shared, path: f.path, cache: REVALIDATE });
-  if (fingerprinted.has(f.path)) entries.push({ ...shared, path: fingerprinted.get(f.path), cache: IMMUTABLE });
 }
 
-const bodiesLiteral = bodies.map((b) => `  ${JSON.stringify(b)},`).join("\n");
-const filesLiteral = entries
-  .map((e) => `  [${JSON.stringify(e.path)}, file(${JSON.stringify(e.type)}, ${JSON.stringify(e.cache)}, ${JSON.stringify(e.etag)}, ${e.base64}, ${e.body})],`)
-  .join("\n");
+const entries = [];
+for (const f of [...pages, ...files, ...generated]) {
+  share(f);
+  // The plain path still works (old cached HTML asks for /styles.css), but it revalidates.
+  entries.push(entry(f, f.path, f.ext === ".html" ? REVALIDATE : plainCache(f.path)));
+  if (fingerprinted.has(f.path)) entries.push(entry(f, fingerprinted.get(f.path), IMMUTABLE));
+}
+share(notFound);
 
-const source = `// Generated by scripts/build-inline.mjs from public/. Do not edit by hand.
-// Serves the site with no bindings and sends www.${APEX} to the apex.
+const fileCall = (e) =>
+  `file(${JSON.stringify(e.type)}, ${JSON.stringify(e.cache)}, ${JSON.stringify(e.etag)}, ${e.base64}, ${e.body}${e.tool ? `, ${JSON.stringify(e.tool)}` : ""})`;
+const bodiesLiteral = bodies.map((b) => `  ${JSON.stringify(b)},`).join("\n");
+const filesLiteral = entries.map((e) => `  [${JSON.stringify(e.path)}, ${fileCall(e)}],`).join("\n");
+
+const workerSource = (await readFile(join(root, "src/worker.js"), "utf8")).replace(/^(?:\/\/.*\n)+\n/, "");
+
+const source = `// Generated by scripts/build-inline.mjs from public/, src/site/ and src/worker.js. Do not edit by hand.
+// Serves toiletpaper.app with no bindings and sends www.${APEX} to the apex.
 
 const APEX = ${JSON.stringify(APEX)};
 
 ${redirectTarget.toString().replace(/ +\)/g, ")").replace(/\) +\{/g, ") {")}
+
+// ---------- public/data.js ----------
+${dataSource.trim()}
+
+// ---------- public/core.js ----------
+${coreSource.trim()}
+
+// ---------- files ----------
+const TOOL_START = ${JSON.stringify(TOOL_START)};
+const TOOL_END = ${JSON.stringify(TOOL_END)};
+const HASH_LENGTH = ${HASH_LENGTH};
+const FINGERPRINT_EXT = ${JSON.stringify(FINGERPRINT_EXT)};
 
 const BODIES = [
 ${bodiesLiteral}
@@ -144,126 +219,23 @@ function decode(index, base64) {
   return (DECODED[index] = bytes);
 }
 
-function file(type, cache, etag, base64, index) {
-  return { type, cache, etag, bytes: () => decode(index, base64) };
+function file(type, cache, etag, base64, index, tool = null) {
+  return { type, cache, etag, tool, bytes: () => decode(index, base64), text: () => BODIES[index] };
 }
 
-// HTML and plain paths revalidate (${REVALIDATE}). Content-hashed CSS and JS paths are immutable.
+// Pages and plain paths mostly revalidate (no-cache). Content-hashed paths are immutable.
 const FILES = new Map([
 ${filesLiteral}
 ]);
 
-const NOT_FOUND = FILES.get("/404.html");
+const NOT_FOUND = ${fileCall({ ...notFound.shared, cache: REVALIDATE })};
 
-// "/" and "/convert" (or "/convert/") serve the index.html in that folder. Files serve at their own path.
-// A hash from an older deploy (/styles.<old>.css) gets the current file, with no-cache instead of immutable.
-function lookup(path) {
-  if (path === "/404.html") return null;
-  if (path.endsWith("/")) return FILES.get(path + "index.html") ?? null;
-  const found = FILES.get(path) ?? FILES.get(path + "/index.html");
-  if (found) return found;
-  const stale = /^(.+)\\.[0-9a-f]{${HASH_LENGTH}}(\\.(?:${FINGERPRINT_EXT}))$/.exec(path);
-  return (stale && FILES.get(stale[1] + stale[2])) ?? null;
-}
-
-// If-None-Match uses weak comparison: W/"x" and "x" match each other.
-function etagMatches(header, etag) {
-  if (!header) return false;
-  const opaque = (tag) => tag.trim().replace(/^W\\//, "");
-  return header.split(",").some((tag) => tag.trim() === "*" || opaque(tag) === opaque(etag));
-}
-
-// One "bytes=a-b", "bytes=a-" or "bytes=-n" range. Returns [first, last], "unsatisfiable", or
-// null when the header should be ignored (malformed or several ranges) and the whole file sent.
-function parseRange(header, size) {
-  const m = /^bytes=(\\d*)-(\\d*)$/.exec(header.trim());
-  if (!m || (m[1] === "" && m[2] === "")) return null;
-  if (m[1] === "") {
-    const suffix = Number(m[2]);
-    return suffix === 0 || size === 0 ? "unsatisfiable" : [Math.max(0, size - suffix), size - 1];
-  }
-  const first = Number(m[1]);
-  if (first >= size) return "unsatisfiable";
-  const last = m[2] === "" ? size - 1 : Number(m[2]);
-  if (last < first) return null;
-  return [first, Math.min(last, size - 1)];
-}
-
-function respond(request, entry, status) {
-  let bytes = entry.bytes();
-  const headers = new Headers({
-    "Content-Type": entry.type,
-    "Cache-Control": status === 404 ? "${REVALIDATE}" : entry.cache,
-    "X-Content-Type-Options": "nosniff",
-  });
-  if (status === 200) {
-    headers.set("ETag", entry.etag);
-    headers.set("Accept-Ranges", "bytes");
-    if (etagMatches(request.headers.get("If-None-Match"), entry.etag)) {
-      headers.delete("Content-Type");
-      return new Response(null, { status: 304, headers });
-    }
-    const range = request.headers.get("Range");
-    const ifRange = request.headers.get("If-Range");
-    // If-Range needs a strong match, so a weak ETag never satisfies it and the whole file is sent.
-    if (range && (!ifRange || (ifRange === entry.etag && !entry.etag.startsWith("W/")))) {
-      const size = bytes.byteLength;
-      const r = parseRange(range, size);
-      if (r === "unsatisfiable") {
-        return new Response(null, {
-          status: 416,
-          headers: { "Content-Range": \`bytes */\${size}\`, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
-        });
-      }
-      if (r) {
-        status = 206;
-        bytes = bytes.subarray(r[0], r[1] + 1);
-        headers.set("Content-Range", \`bytes \${r[0]}-\${r[1]}/\${size}\`);
-      }
-    }
-  }
-  headers.set("Content-Length", String(bytes.byteLength));
-  return new Response(request.method === "HEAD" ? null : bytes, { status, headers });
-}
-
-export default {
-  async fetch(request) {
-    const target = redirectTarget(request.url);
-    if (target) return Response.redirect(target, 301);
-
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response("Method not allowed\\n", {
-        status: 405,
-        headers: { Allow: "GET, HEAD", "Content-Type": "text/plain; charset=utf-8", "X-Content-Type-Options": "nosniff" },
-      });
-    }
-
-    const url = new URL(request.url);
-    let path = url.pathname;
-    try {
-      path = decodeURIComponent(path);
-    } catch {
-      // Malformed escapes fall through to the 404 page.
-    }
-
-    // /index, /index.html, /convert/index.html and so on are the same pages as /, /convert.
-    let base = null;
-    if (path.endsWith("/index.html")) base = path.slice(0, -"index.html".length);
-    else if (path.endsWith("/index")) base = path.slice(0, -"index".length);
-    if (base !== null && FILES.has(base + "index.html")) {
-      const location = base === "/" ? "/" : base.slice(0, -1);
-      return new Response(null, { status: 301, headers: { Location: location + url.search } });
-    }
-
-    const entry = lookup(path);
-    return entry ? respond(request, entry, 200) : respond(request, NOT_FOUND, 404);
-  },
-};
-`;
+// ---------- src/worker.js ----------
+${workerSource}`;
 
 const size = Buffer.byteLength(source);
 if (size > MAX_BYTES) throw new Error(`dist-inline/index.js is ${size} bytes, over the 3 MB limit`);
 
 await mkdir(outDir, { recursive: true });
 await writeFile(outFile, source);
-console.log(`dist-inline/index.js: ${files.length} files inlined, served at ${entries.map((e) => e.path).join(", ")}; ${size} bytes (${(size / 1024).toFixed(1)} KiB)`);
+console.log(`dist-inline/index.js: ${pages.length} pages, ${files.length} static files and ${generated.length} generated files at ${entries.length} paths; ${size} bytes (${(size / 1024).toFixed(1)} KiB)`);

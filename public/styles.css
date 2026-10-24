@@ -17,6 +17,9 @@
   --qn: #E0457B;
   --qn-ink: #B92A5F;
   --qn-soft: #FFE8F0;
+  --angel: #128C7E;
+  --angel-ink: #0B6B60;
+  --angel-soft: #DDF3EF;
   --regular: #A08A72;
   --radius: 14px;
   --font-fun: "Arial Rounded MT Bold", ui-rounded, "SF Pro Rounded", "Nunito", "Trebuchet MS", system-ui, sans-serif;
@@ -82,23 +85,41 @@ a { color: var(--charmin); }
 .btn-link:hover { color: var(--ink); }
 .btn-link[disabled] { cursor: default; text-decoration: none; }
 
-/* ---------- Background: a few slow rolls ---------- */
-.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.drifter { position: absolute; left: 0; width: 150px; height: 70px; opacity: 0.16; animation: drift linear infinite; }
-.drifter svg { width: 100%; height: 100%; animation: bob 4s ease-in-out infinite alternate; }
-.drifter .streamer { animation: flutter 2s ease-in-out infinite alternate; transform-origin: 100% 50%; transform-box: fill-box; }
+/* ---------- Background: rolls unspooling as they drift by ----------
+   Built by app.js from TPCore.skyRollHTML. Three depths for parallax: farther rolls are
+   smaller, fainter and slower. Only transforms animate, so it all stays on the compositor. */
+.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.sky.is-paused * { animation-play-state: paused !important; }
+.drifter { position: absolute; left: 0; animation: drift linear infinite; will-change: transform; }
+.drifter.depth-far { opacity: 0.08; }
+.drifter.depth-mid { opacity: 0.12; }
+.drifter.depth-near { opacity: 0.16; }
+.drifter-scale { transform-origin: 0 50%; }
+.depth-far .drifter-scale { transform: scale(0.6); }
+.depth-mid .drifter-scale { transform: scale(0.8); }
+.drifter-bob { position: relative; width: 48px; height: 48px; animation: bob 4s ease-in-out infinite alternate; }
+.spool { position: relative; display: block; width: 48px; height: 48px; animation: spin 4s linear infinite; }
+/* The ribbon leaves the bottom of the roll and trails behind it. Each sheet hangs off the one before. */
+.ribbon { position: absolute; left: 22px; top: 41px; }
+.sheet {
+  position: absolute; right: 0; top: 0; width: 20px; height: 24px;
+  background: #fff; border: 1.5px solid rgba(46, 33, 64, 0.6); border-right-style: dashed;
+  transform-origin: 100% 50%; animation: sway 1s ease-in-out infinite alternate;
+}
+.sheet .sheet { right: calc(100% + 1.5px); top: -1.5px; }
 
 @keyframes drift {
-  from { transform: translateX(-200px); }
-  to { transform: translateX(calc(100vw + 40px)); }
+  from { transform: translate3d(-240px, 0, 0); }
+  to { transform: translate3d(calc(100vw + 80px), 0, 0); }
 }
 @keyframes bob {
-  from { transform: translateY(-6px) rotate(-3deg); }
-  to { transform: translateY(8px) rotate(3deg); }
+  from { transform: translate3d(0, -10px, 0); }
+  to { transform: translate3d(0, 10px, 0); }
 }
-@keyframes flutter {
-  from { transform: skewY(-5deg) scaleY(0.92); }
-  to { transform: skewY(5deg) scaleY(1.08); }
+@keyframes spin { to { transform: rotate(1turn); } }
+@keyframes sway {
+  from { transform: rotate(-7deg); }
+  to { transform: rotate(3deg); }
 }
 
 .site-header, main, .site-footer { position: relative; z-index: 1; }
@@ -250,9 +271,11 @@ details.how li { margin-bottom: 0.4em; }
 .roll-card { border-radius: var(--radius); padding: 12px 14px; border: 1.5px solid var(--line); background: var(--surface); }
 .roll-card.charmin { border-left: 6px solid var(--charmin); }
 .roll-card.qn { border-left: 6px solid var(--qn); }
+.roll-card.angel { border-left: 6px solid var(--angel); }
 .roll-card .brand-name-small { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; margin: 0; }
 .roll-card.charmin .brand-name-small { color: var(--charmin); }
 .roll-card.qn .brand-name-small { color: var(--qn-ink); }
+.roll-card.angel .brand-name-small { color: var(--angel-ink); }
 .roll-card h2 { margin: 0 0 8px; font-size: 1.25rem; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px; }
 .stat { background: var(--surface-2); border-radius: 8px; padding: 6px 8px; border: 1.5px solid transparent; }
@@ -262,13 +285,15 @@ details.how li { margin-bottom: 0.4em; }
 .roll-card .note { font-size: 0.88rem; margin: 0 0 2px; }
 .roll-card .source { font-size: 0.78rem; color: var(--muted); margin: 0; }
 
-.equals-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.equals-hero { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-top: 12px; }
 .eq-tile { border-radius: var(--radius); padding: 10px; text-align: center; }
 .eq-tile.charmin { background: var(--charmin-soft); }
 .eq-tile.qn { background: var(--qn-soft); }
+.eq-tile.angel { background: var(--angel-soft); }
 .eq-num { font-family: var(--font-fun); font-size: 1.8rem; line-height: 1.1; display: block; }
 .eq-tile.charmin .eq-num { color: var(--charmin); }
 .eq-tile.qn .eq-num { color: var(--qn-ink); }
+.eq-tile.angel .eq-num { color: var(--angel-ink); }
 .eq-label { font-size: 0.82rem; }
 .claim-check { margin: 10px 0 0; font-size: 0.88rem; color: var(--muted); }
 .claim-check strong { color: var(--ink); }
@@ -281,6 +306,7 @@ details.how li { margin-bottom: 0.4em; }
 .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 .swatch.charmin { background: var(--charmin); }
 .swatch.qn { background: var(--qn); }
+.swatch.angel { background: var(--angel); }
 .swatch.regular { background: repeating-linear-gradient(45deg, var(--regular) 0 2px, #fff 2px 4px); border: 1px solid var(--regular); }
 
 .chart-cols, .bar-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 4.2em; gap: 10px; align-items: center; }
@@ -297,10 +323,12 @@ details.how li { margin-bottom: 0.4em; }
 .bar-label b { font-weight: 700; }
 .bar-row.charmin .bar-label b { color: var(--charmin); }
 .bar-row.qn .bar-label b { color: var(--qn-ink); }
+.bar-row.angel .bar-label b { color: var(--angel-ink); }
 .bar-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .bar { height: 12px; border-radius: 0 4px 4px 0; min-width: 3px; flex: none; }
 .bar-row.charmin .bar { background: var(--charmin); }
 .bar-row.qn .bar { background: var(--qn); }
+.bar-row.angel .bar { background: var(--angel); }
 .bar-row.regular .bar { background: repeating-linear-gradient(45deg, var(--regular) 0 3px, #F3EBE1 3px 6px); }
 .bar-row[aria-pressed="true"] .bar { box-shadow: 0 0 0 2px var(--ink); }
 .bar-value { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
@@ -318,6 +346,7 @@ details.how li { margin-bottom: 0.4em; }
 .brand-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
 .charmin .brand-dot { background: var(--charmin); }
 .qn .brand-dot { background: var(--qn); }
+.angel .brand-dot { background: var(--angel); }
 
 .shrink-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .shrink-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; font-size: 0.92rem; }
@@ -333,7 +362,12 @@ details.how li { margin-bottom: 0.4em; }
 }
 .versus-bar.charmin { background: var(--charmin); }
 .versus-bar.qn { background: var(--qn-ink); }
-.versus-bar.faded { opacity: 0.5; }
+.versus-bar.angel { background: var(--angel-ink); }
+/* Older numbers: a pale bar with dark text, so it still reads clearly. */
+.versus-bar.faded { border: 1.5px dashed currentColor; }
+.versus-bar.charmin.faded { background: var(--charmin-soft); color: var(--charmin); }
+.versus-bar.qn.faded { background: var(--qn-soft); color: var(--qn-ink); }
+.versus-bar.angel.faded { background: var(--angel-soft); color: var(--angel-ink); }
 .claim-stamp { font-weight: 700; white-space: nowrap; }
 .shrink-card p:last-child { margin-bottom: 0; }
 
@@ -346,12 +380,32 @@ details.how li { margin-bottom: 0.4em; }
 .sources .brand-cell { font-weight: 700; }
 .sources tr.charmin .brand-cell { color: var(--charmin); }
 .sources tr.qn .brand-cell { color: var(--qn-ink); }
+.sources tr.angel .brand-cell { color: var(--angel-ink); }
 .sources tr.group td { background: var(--bg); font-weight: 700; }
 .disclaimer { margin-top: 14px; font-size: 0.88rem; color: var(--muted); }
 
+/* ---------- Guides, FAQ, data ---------- */
+.crumbs { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.crumbs li + li::before { content: "›"; margin-right: 4px; }
+.crumbs a { color: var(--muted); }
+.prose { max-width: 46em; }
+.prose h2 { margin-top: 1.2em; }
+.prose ul, .prose ol { padding-left: 1.3em; }
+.prose li { margin-bottom: 0.3em; }
+.answer { font-size: 1.05rem; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--sun); border-radius: var(--radius); padding: 12px 16px; }
+.faq h3 { font-size: 1rem; margin: 1em 0 0.3em; font-family: var(--font-body); font-weight: 700; }
+.faq p { margin-bottom: 0.4em; }
+.facts { min-width: 640px; }
+.facts td.num, .facts th.num { text-align: right; }
+code { font-size: 0.85em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; word-break: break-all; }
+.copy-status { font-size: 0.85rem; color: var(--win); }
+
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--line); padding: 14px 0 18px; font-size: 0.82rem; color: var(--muted); background: rgba(255, 248, 236, 0.9); }
-.footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+.footer-inner { display: grid; gap: 8px; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 0 16px; margin: 0; padding: 0; list-style: none; }
+.footer-links a { display: inline-block; padding: 6px 0; color: var(--muted); }
 .site-footer p { margin: 0; }
 
 /* ---------- 404 ---------- */
@@ -359,10 +413,6 @@ details.how li { margin-bottom: 0.4em; }
 .lost h1 { font-size: 1.8rem; }
 
 /* ---------- Motion ---------- */
-body.paused *,
-body.paused *::before,
-body.paused *::after { animation-play-state: paused !important; }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .sky { display: none; }
@@ -429,5 +479,6 @@ body.paused *::after { animation-play-state: paused !important; }
   .stat dd { font-size: 0.92rem; }
   .eq-num { font-size: 1.5rem; }
   .chart-cols, .bar-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 3.6em; gap: 6px; }
-  .drifter { width: 110px; height: 52px; }
+  .depth-near .drifter-scale { transform: scale(0.8); }
+  .depth-far .drifter-scale { transform: scale(0.5); }
 }
