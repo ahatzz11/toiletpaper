@@ -7,12 +7,14 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:inline": "node scripts/build-inline.mjs",
-    "test": "npm run build:inline && node --test test/"
+    "test": "npm run build:inline && node --test test/",
+    "media": "node scripts/make-share-media.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^2.0.0-beta.v.1",
     "@cloudflare/workers-types": "^5.20261016.1",
     "cf": "1.0.0-beta.18",
+    "playwright-core": "^1.64.1",
     "vite": "^8.3.4"
   }
 }

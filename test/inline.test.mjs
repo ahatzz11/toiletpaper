@@ -11,9 +11,11 @@ import worker from "../dist-inline/index.js";
 const get = (path, init = {}, host = "toiletpaper.app") => worker.fetch(new Request(`https://${host}${path}`, init));
 const pub = (file) => readFile(new URL(`../public/${file}`, import.meta.url), "utf8");
 const pick = (html, re) => (re.exec(html) || [])[1];
+const pubBytes = (file) => readFile(new URL(`../public/${file}`, import.meta.url));
+const meta = (html, key) => pick(html, new RegExp(`<meta (?:property|name)="${key.replace(/[.:]/g, "\\$&")}" content="([^"]*)">`));
 const hash10 = (text) => createHash("sha256").update(text).digest("hex").slice(0, 10);
 // The built HTML is the source HTML with /styles.css pointed at /styles.<hash>.css and so on.
-const unhash = (html) => html.replace(/(\/[a-z]+)\.[0-9a-f]{10}(\.(?:css|js))"/g, '$1$2"');
+const unhash = (html) => html.replace(/(\/[a-z]+)\.[0-9a-f]{10}(\.(?:css|js|png|mp4))"/g, '$1$2"');
 const assetRefs = (html) => [...html.matchAll(/\s(?:href|src)="([^"]*\.(?:css|m?js))"/g)].map((m) => m[1]);
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const ASSETS = [
@@ -148,6 +150,108 @@ test("every page sizes the mascot and has fallback header styles without styles.
   }
   // The background rolls built by app.js carry their own size too.
   assert.match(await pub("app.js"), /<svg width="150" height="70" viewBox="0 0 170 80"/);
+});
+
+const MEDIA = [
+  { key: "og:image", file: "media/share.png", type: "image/png" },
+  { key: "og:video", file: "media/share.mp4", type: "video/mp4" },
+];
+
+test("every page has share image and video tags with absolute hashed URLs", async () => {
+  const urls = {};
+  for (const m of MEDIA) {
+    const [name, ext] = m.file.split(".");
+    urls[m.key] = `https://toiletpaper.app/${name}.${hash10(await pubBytes(m.file))}.${ext}`;
+  }
+  for (const page of HTML_PAGES) {
+    const html = await (await get(page.path)).text();
+    const tag = (key) => meta(html, key);
+    assert.equal(tag("og:image"), urls["og:image"], page.path);
+    assert.equal(tag("og:image:type"), "image/png", page.path);
+    assert.equal(tag("og:image:width"), "1200", page.path);
+    assert.equal(tag("og:image:height"), "630", page.path);
+    assert.ok(tag("og:image:alt")?.length > 20, `${page.path} og:image:alt`);
+    assert.equal(tag("og:video"), urls["og:video"], page.path);
+    assert.equal(tag("og:video:secure_url"), urls["og:video"], page.path);
+    assert.equal(tag("og:video:type"), "video/mp4", page.path);
+    assert.equal(tag("og:video:width"), "1200", page.path);
+    assert.equal(tag("og:video:height"), "630", page.path);
+    assert.equal(tag("twitter:card"), "summary_large_image", page.path);
+    assert.equal(tag("twitter:image"), urls["og:image"], page.path);
+    assert.equal(tag("twitter:image:alt"), tag("og:image:alt"), page.path);
+  }
+});
+
+test("share media returns 200 with its type, an immutable cache and byte ranges", async () => {
+  const html = await (await get("/")).text();
+  for (const m of MEDIA) {
+    const path = new URL(meta(html, m.key)).pathname;
+    const res = await get(path);
+    assert.equal(res.status, 200, path);
+    assert.equal(res.headers.get("content-type"), m.type, path);
+    assert.equal(res.headers.get("cache-control"), IMMUTABLE, path);
+    assert.equal(res.headers.get("accept-ranges"), "bytes", path);
+    const body = Buffer.from(await res.arrayBuffer());
+    assert.ok(body.equals(await pubBytes(m.file)), `${path} serves public/${m.file}`);
+    assert.equal(res.headers.get("content-length"), String(body.length));
+  }
+});
+
+test("the share image is a 1200x630 PNG and the video is a faststart MP4", async () => {
+  const png = await pubBytes("media/share.png");
+  assert.ok(png.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])));
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [1200, 630]);
+  assert.ok(png.length < 150 * 1024, `share.png is ${png.length} bytes`);
+  const mp4 = await pubBytes("media/share.mp4");
+  assert.equal(mp4.toString("latin1", 4, 8), "ftyp");
+  assert.ok(mp4.indexOf("moov") < mp4.indexOf("mdat"), "moov comes before mdat, so playback starts before the download ends");
+  assert.ok(mp4.length < 1024 * 1024, `share.mp4 is ${mp4.length} bytes`);
+});
+
+test("a Range request gets a 206 with the right bytes", async () => {
+  const path = new URL(meta(await (await get("/")).text(), "og:video")).pathname;
+  const mp4 = await pubBytes("media/share.mp4");
+  const size = mp4.length;
+  const cases = [
+    ["bytes=0-99", 0, 99],
+    ["bytes=1000-", 1000, size - 1],
+    ["bytes=-500", size - 500, size - 1],
+    [`bytes=${size - 10}-${size + 1000}`, size - 10, size - 1],
+  ];
+  for (const [range, first, last] of cases) {
+    const res = await get(path, { headers: { Range: range } });
+    assert.equal(res.status, 206, range);
+    assert.equal(res.headers.get("content-range"), `bytes ${first}-${last}/${size}`, range);
+    assert.equal(res.headers.get("content-length"), String(last - first + 1), range);
+    assert.equal(res.headers.get("content-type"), "video/mp4", range);
+    assert.equal(res.headers.get("cache-control"), IMMUTABLE, range);
+    assert.ok(Buffer.from(await res.arrayBuffer()).equals(mp4.subarray(first, last + 1)), range);
+  }
+  // HEAD gets the same headers and no body.
+  const head = await get(path, { method: "HEAD", headers: { Range: "bytes=0-99" } });
+  assert.equal(head.status, 206);
+  assert.equal(head.headers.get("content-length"), "100");
+  assert.equal(await head.text(), "");
+  // Several ranges, a backwards range, or an If-Range that doesn't match: the whole file.
+  for (const headers of [{ Range: "bytes=0-1,5-6" }, { Range: "bytes=50-10" }, { Range: "bytes=0-99", "If-Range": '"old"' }]) {
+    const res = await get(path, { headers });
+    assert.equal(res.status, 200, JSON.stringify(headers));
+    assert.equal(res.headers.get("content-length"), String(size));
+    await res.arrayBuffer();
+  }
+  const etag = head.headers.get("etag");
+  assert.equal((await get(path, { headers: { Range: "bytes=0-99", "If-Range": etag } })).status, 206);
+});
+
+test("an unsatisfiable Range gets a 416", async () => {
+  const path = new URL(meta(await (await get("/")).text(), "og:video")).pathname;
+  const size = (await pubBytes("media/share.mp4")).length;
+  for (const range of [`bytes=${size}-`, `bytes=${size + 100}-${size + 200}`, "bytes=-0"]) {
+    const res = await get(path, { headers: { Range: range } });
+    assert.equal(res.status, 416, range);
+    assert.equal(res.headers.get("content-range"), `bytes */${size}`, range);
+    assert.equal(await res.text(), "");
+  }
 });
 
 test("index file paths redirect to their clean route", async () => {
