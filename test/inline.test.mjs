@@ -1,11 +1,26 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { appendFile, cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import worker from "../dist-inline/index.js";
 
 const get = (path, init = {}, host = "toiletpaper.app") => worker.fetch(new Request(`https://${host}${path}`, init));
 const pub = (file) => readFile(new URL(`../public/${file}`, import.meta.url), "utf8");
 const pick = (html, re) => (re.exec(html) || [])[1];
+const hash10 = (text) => createHash("sha256").update(text).digest("hex").slice(0, 10);
+// The built HTML is the source HTML with /styles.css pointed at /styles.<hash>.css and so on.
+const unhash = (html) => html.replace(/(\/[a-z]+)\.[0-9a-f]{10}(\.(?:css|js))"/g, '$1$2"');
+const assetRefs = (html) => [...html.matchAll(/\s(?:href|src)="([^"]*\.(?:css|m?js))"/g)].map((m) => m[1]);
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const ASSETS = [
+  { file: "styles.css", type: "text/css; charset=utf-8" },
+  { file: "data.js", type: "text/javascript; charset=utf-8" },
+  { file: "app.js", type: "text/javascript; charset=utf-8" },
+];
 
 const PAGES = [
   { path: "/", file: "index.html", title: "Which toilet paper pack is the better deal? | Toilet Paper Math" },
@@ -18,9 +33,10 @@ for (const page of PAGES) {
     const res = await get(page.path);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
-    assert.equal(res.headers.get("cache-control"), "public, max-age=300");
+    assert.equal(res.headers.get("cache-control"), "no-cache");
+    assert.ok(res.headers.get("etag"));
     const html = await res.text();
-    assert.equal(html, await pub(page.file));
+    assert.equal(unhash(html), await pub(page.file));
     assert.equal(pick(html, /<title>([^<]*)<\/title>/), page.title);
     const url = `https://toiletpaper.app${page.path}`;
     assert.equal(pick(html, /<link rel="canonical" href="([^"]*)">/), url);
@@ -55,17 +71,83 @@ test("sheet count is the default comparison on both tools", async () => {
   assert.match(app, /checkedValue\("conv-mode", "sheets"\)/);
 });
 
-test("/styles.css, /app.js and /data.js serve with their types", async () => {
-  const css = await get("/styles.css");
-  assert.equal(css.status, 200);
-  assert.equal(css.headers.get("content-type"), "text/css; charset=utf-8");
-  assert.equal(css.headers.get("cache-control"), "public, max-age=3600");
-  assert.equal(await css.text(), await pub("styles.css"));
-  for (const path of ["/app.js", "/data.js"]) {
-    const js = await get(path);
-    assert.equal(js.status, 200);
-    assert.equal(js.headers.get("content-type"), "text/javascript; charset=utf-8");
+const HTML_PAGES = [...PAGES, { path: "/nope", file: "404.html" }];
+
+test("every page references only content-hashed CSS and JS, in the source order", async () => {
+  for (const page of HTML_PAGES) {
+    const html = await (await get(page.path)).text();
+    const expected = ASSETS.map(async (a) => `/${a.file.replace(/\.(css|js)$/, `.${hash10(await pub(a.file))}.$1`)}`);
+    const refs = assetRefs(html);
+    assert.deepEqual(refs, await Promise.all(expected), page.path);
+    // Nothing still points at a plain /styles.css, /app.js or /data.js.
+    for (const a of ASSETS) assert.ok(!html.includes(`"/${a.file}"`), `${page.path} still references /${a.file}`);
   }
+});
+
+test("hashed CSS and JS return 200 with an immutable cache header and their type", async () => {
+  const refs = assetRefs(await (await get("/")).text());
+  assert.equal(refs.length, ASSETS.length);
+  for (const path of refs) {
+    const asset = ASSETS.find((a) => path.startsWith(`/${a.file.split(".")[0]}.`));
+    const res = await get(path);
+    assert.equal(res.status, 200, path);
+    assert.equal(res.headers.get("content-type"), asset.type, path);
+    assert.equal(res.headers.get("cache-control"), IMMUTABLE, path);
+    const body = await res.text();
+    assert.equal(body, await pub(asset.file), path);
+    // The hash in the URL is the hash of what it serves.
+    assert.equal(path.split(".").at(-2), hash10(body), path);
+  }
+});
+
+test("plain and out-of-date asset paths serve the current file with no-cache", async () => {
+  for (const a of ASSETS) {
+    const [name, ext] = a.file.split(".");
+    for (const path of [`/${a.file}`, `/${name}.0123456789.${ext}`]) {
+      const res = await get(path);
+      assert.equal(res.status, 200, path);
+      assert.equal(res.headers.get("content-type"), a.type, path);
+      assert.equal(res.headers.get("cache-control"), "no-cache", path);
+      assert.equal(await res.text(), await pub(a.file), path);
+    }
+  }
+});
+
+test("changing a file changes its hashed URL", async () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const dir = await mkdtemp(join(tmpdir(), "tp-build-"));
+  try {
+    for (const sub of ["public", "scripts", "src"]) await cp(join(root, sub), join(dir, sub), { recursive: true });
+    await appendFile(join(dir, "public", "styles.css"), "\n/* changed */\n");
+    execFileSync(process.execPath, [join(dir, "scripts", "build-inline.mjs")], { stdio: "ignore" });
+    const { default: changed } = await import(join(dir, "dist-inline", "index.js"));
+    const refsOf = async (w) => assetRefs(await (await w.fetch(new Request("https://toiletpaper.app/"))).text());
+    const [before, after] = [await refsOf(worker), await refsOf(changed)];
+    assert.notEqual(after[0], before[0], "styles.css hash should change");
+    assert.match(after[0], /^\/styles\.[0-9a-f]{10}\.css$/);
+    assert.deepEqual(after.slice(1), before.slice(1), "unchanged JS keeps its hash");
+    const res = await changed.fetch(new Request(`https://toiletpaper.app${after[0]}`));
+    assert.match(await res.text(), /\/\* changed \*\/\n$/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("every page sizes the mascot and has fallback header styles without styles.css", async () => {
+  let fallback;
+  for (const page of HTML_PAGES) {
+    const html = await (await get(page.path)).text();
+    assert.match(html, /<svg class="mascot" width="58" height="63" viewBox="60 40 240 260"/, page.path);
+    const style = pick(html, /<style>([\s\S]*?)<\/style>/);
+    assert.ok(style, `${page.path} has an inline <style>`);
+    assert.match(style, /:where\(\.mascot\) \{ width: 58px; height: 63px;/);
+    assert.match(style, /:where\(\.site-nav\) \{ display: flex;/);
+    assert.ok(html.indexOf("<style>") < html.indexOf('<link rel="stylesheet"'), `${page.path}: inline style comes before the stylesheet`);
+    fallback ??= style;
+    assert.equal(style, fallback, `${page.path} has the same fallback styles as the other pages`);
+  }
+  // The background rolls built by app.js carry their own size too.
+  assert.match(await pub("app.js"), /<svg width="150" height="70" viewBox="0 0 170 80"/);
 });
 
 test("index file paths redirect to their clean route", async () => {
@@ -82,6 +164,7 @@ test("unknown paths serve the 404 page", async () => {
     const res = await get(path);
     assert.equal(res.status, 404, path);
     assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+    assert.equal(res.headers.get("cache-control"), "no-cache");
     assert.match(await res.text(), /<title>Page not found \| Toilet Paper Math<\/title>/);
   }
 });
@@ -110,6 +193,10 @@ test("a matching If-None-Match gets a 304", async () => {
   assert.equal(res.headers.get("etag"), etag);
   assert.equal(await res.text(), "");
   assert.equal((await get("/styles.css", { headers: { "If-None-Match": '"stale"' } })).status, 200);
+  // Revalidating HTML keeps no-cache on the 304.
+  const page = await get("/convert", { headers: { "If-None-Match": (await get("/convert")).headers.get("etag") } });
+  assert.equal(page.status, 304);
+  assert.equal(page.headers.get("cache-control"), "no-cache");
 });
 
 test("other methods get a 405", async () => {

@@ -47,7 +47,7 @@
   // Background: a few slow rolls with streamers
   // ======================================================
   var ROLL_SVG =
-    '<svg viewBox="0 0 170 80" xmlns="http://www.w3.org/2000/svg">' +
+    '<svg width="150" height="70" viewBox="0 0 170 80" xmlns="http://www.w3.org/2000/svg">' +
     '<path class="streamer" d="M118 50 C 100 38, 84 66, 60 54 S 24 42, 4 58 L 4 74 C 24 58, 44 70, 60 68 S 100 56, 118 68 Z" fill="#fff" stroke="#2E2140" stroke-opacity=".4" stroke-width="2"/>' +
     '<rect x="112" y="28" width="38" height="46" rx="5" fill="#fff" stroke="#2E2140" stroke-opacity=".6" stroke-width="3"/>' +
     '<ellipse cx="150" cy="51" rx="11" ry="23" fill="#FFFDF8" stroke="#2E2140" stroke-opacity=".6" stroke-width="3"/>' +
@@ -59,6 +59,8 @@
   function buildSky() {
     var sky = $("sky");
     if (!sky || reduceMotion.matches || sky.childElementCount) return;
+    // Without styles.css the rolls would sit in the page flow, so skip them.
+    if (!getComputedStyle(document.documentElement).getPropertyValue("--bg")) return;
     var count = window.innerWidth < 640 ? 2 : 3;
     var html = "";
     for (var i = 0; i < count; i++) {

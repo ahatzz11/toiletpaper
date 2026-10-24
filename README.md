@@ -12,7 +12,7 @@ Both tools compare by sheet count by default. Paper area and area × ply are one
 
 The site is plain HTML, CSS and JavaScript in `public/`, with no framework and no client build step:
 
-- `public/index.html`, `public/convert/index.html`, `public/about/index.html`: one file per page. They share the same header (mascot and nav) and footer, so change all three together.
+- `public/index.html`, `public/convert/index.html`, `public/about/index.html`: one file per page. They share the same header (mascot and nav), footer and small inline `<style>` with fallback header styles, so change all four HTML files together (including `404.html`).
 - `public/app.js`: one script for every page. It only sets up the parts a page contains.
 - `public/styles.css`: shared styles.
 - `public/data.js`: every roll's sheet count, sheet size, ply and source. Edit numbers here.
@@ -29,8 +29,20 @@ npm test               # runs build:inline, then the tests in test/
 `npm run build:inline` runs `scripts/build-inline.mjs`. It reads every file in `public/` and writes one ES module Worker to `dist-inline/index.js` with the files inlined. That Worker has no imports and no bindings, and it serves every route itself:
 
 - `/`, `/convert` and `/about` (with or without a trailing slash) return 200 with that page's `index.html`. `/index`, `/index.html`, `/convert/index.html` and similar get a 301 to the clean route.
-- Every other file at its own path, with its Content-Type, an ETag (an `If-None-Match` match gets a 304) and `Cache-Control` (5 minutes for HTML, 1 hour for everything else).
+- Every other file at its own path, with its Content-Type and an ETag (an `If-None-Match` match gets a 304).
+- CSS and JS also at a content-hashed path, like `/styles.<hash>.css`. The hash is the first 10 hex characters of the file's SHA-256, and the build rewrites every `href` and `src` in the HTML to point at it. A CSS or JS reference it can't rewrite fails the build.
 - `404.html` with status 404 for unknown paths.
+
+Caching, so a deploy never mixes new HTML with old CSS or JS:
+
+| What | Cache-Control |
+| --- | --- |
+| Hashed CSS and JS (`/styles.<hash>.css`, `/app.<hash>.js`, `/data.<hash>.js`) | `public, max-age=31536000, immutable` |
+| HTML, the 404 page, and plain `/styles.css`, `/app.js`, `/data.js` | `no-cache` (revalidated with the ETag on every load) |
+
+The plain paths still serve the current files for old cached HTML. A hash from an older deploy also gets the current file, with `no-cache`.
+
+Each page's inline `<style>` and the mascot's `width` and `height` attributes keep the header small if `styles.css` fails to load. The fallback rules use `:where()`, so `styles.css` always overrides them.
 - Only GET and HEAD. Other methods get a 405.
 
 To add a page, create `public/<name>/index.html`. The build picks it up and the Worker serves it at `/<name>`.
