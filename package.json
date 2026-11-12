@@ -13,9 +13,9 @@
     "indexnow": "node scripts/indexnow.mjs"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^2.0.0-beta.v.1",
+    "@cloudflare/vite-plugin": "^2.0.0-beta.v.11",
     "@cloudflare/workers-types": "^5.20261016.1",
-    "cf": "1.0.0-beta.18",
+    "cf": "1.0.0-beta.27",
     "playwright-core": "^1.64.1",
     "vite": "^8.3.4"
   }
