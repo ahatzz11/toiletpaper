@@ -13,10 +13,10 @@
     "indexnow": "node scripts/indexnow.mjs"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^2.0.0-rc.1",
-    "@cloudflare/workers-types": "^5.20261112.1",
-    "cf": "1.0.0-rc.1",
-    "playwright-core": "^1.65.0",
+    "@cloudflare/vite-plugin": "^2.0.0-rc.2",
+    "@cloudflare/workers-types": "^5.20261119.1",
+    "cf": "1.0.0-rc.2",
+    "playwright-core": "^1.65.1",
     "vite": "^8.3.8"
   }
 }
